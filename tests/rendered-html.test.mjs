@@ -117,7 +117,8 @@ test("activates Overview, Equipment and Reports with protected PM records", asyn
   assert.match(page, /function OverviewView/);
   assert.match(page, /function EquipmentView/);
   assert.match(page, /function ReportsView/);
-  assert.match(page, /Maintenance control center/);
+  assert.match(page, /Alerts &amp; service facts/);
+  assert.match(page, /kairosProductStage/);
   assert.match(page, /Equipment registry/);
   assert.match(page, /Export filtered CSV/);
   assert.match(page, /Print or save full PM PDF/);
