@@ -10,10 +10,6 @@ export async function GET(request: Request) {
     const actorSubject = await requireActorSubject(request);
     const db = getDb();
     await purgeExpiredSignatures();
-    await db
-      .update(pmRecords)
-      .set({ ownerSubject: actorSubject, ownerEmail: null })
-      .where(and(isNull(pmRecords.ownerSubject), isNull(pmRecords.deletedAt)));
     const rows = await db
       .select({
         id: pmRecords.id,

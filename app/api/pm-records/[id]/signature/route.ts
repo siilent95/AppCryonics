@@ -1,4 +1,4 @@
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { pmEvents, pmRecords } from "../../../../../db/schema";
 import { requireActorSubject } from "../../_identity";
@@ -35,7 +35,6 @@ export async function GET(request: Request, context: RouteContext) {
     const db = getDb();
     const [record] = await db
       .select({
-        ownerSubject: pmRecords.ownerSubject,
         recipientKey: pmRecords.recipientSignatureKey,
         recipientMimeType: pmRecords.recipientSignatureMimeType,
         recipientDeletedAt: pmRecords.recipientSignatureDeletedAt,
@@ -47,20 +46,13 @@ export async function GET(request: Request, context: RouteContext) {
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          eq(pmRecords.ownerSubject, actorSubject),
           isNull(pmRecords.deletedAt),
         ),
       )
       .limit(1);
 
     if (!record) return Response.json({ error: "PM record not found." }, { status: 404 });
-    if (!record.ownerSubject) {
-      await db
-        .update(pmRecords)
-        .set({ ownerSubject: actorSubject, ownerEmail: null })
-        .where(and(eq(pmRecords.id, id), isNull(pmRecords.ownerSubject)));
-    }
-
     const key = role === "technician" ? record.technicianKey : record.recipientKey;
     const mimeType = role === "technician" ? record.technicianMimeType : record.recipientMimeType;
     const deletedAt = role === "technician" ? record.technicianDeletedAt : record.recipientDeletedAt;
@@ -95,7 +87,6 @@ export async function POST(request: Request, context: RouteContext) {
     const db = getDb();
     const [record] = await db
       .select({
-        ownerSubject: pmRecords.ownerSubject,
         recordNumber: pmRecords.recordNumber,
         status: pmRecords.status,
         revision: pmRecords.revision,
@@ -109,7 +100,7 @@ export async function POST(request: Request, context: RouteContext) {
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          eq(pmRecords.ownerSubject, actorSubject),
           isNull(pmRecords.deletedAt),
         ),
       )

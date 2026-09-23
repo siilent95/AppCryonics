@@ -7,9 +7,21 @@ type IdentityEnvironment = {
 export class AuthenticationError extends Error {}
 
 export async function requireActorSubject(request: Request) {
+  const userId = request.headers.get("oai-authenticated-user-id")?.trim();
   const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-  if (!email || email.length > 320) {
+  if (!userId || userId.length > 320 || !email || email.length > 320) {
     throw new AuthenticationError("Authenticated workspace identity is required.");
+  }
+
+  // The local Sites middleware supplies this fixed test identity only after its
+  // loopback-only sign-in. Production builds never take this branch.
+  if (
+    process.env.NODE_ENV === "development" &&
+    ["localhost", "127.0.0.1", "::1"].includes(new URL(request.url).hostname) &&
+    userId === "local_seedy" &&
+    email === "seedy@sites.test"
+  ) {
+    return "local-dev:local_seedy";
   }
 
   const secret = (env as unknown as IdentityEnvironment).IDENTITY_HMAC_SECRET;

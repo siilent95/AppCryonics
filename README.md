@@ -19,10 +19,14 @@ Para compilar localmente se requiere Node.js 22.13 o posterior:
 
 ```bash
 npm install
-npx vinext build
+npm run build
 ```
 
-Las API de PM requieren los recursos D1/R2, la identidad autenticada del sitio y `IDENTITY_HMAC_SECRET`. El secreto se configura en el entorno de despliegue y no debe guardarse en Git.
+Para probar la app localmente, inicia `npm run dev` y abre la URL local que muestra Vite. El servidor de desarrollo simula el inicio de sesión de Sites solo para solicitudes de loopback. No uses datos reales en esa instancia de prueba. La identidad simulada nunca se empaqueta en la compilación de producción.
+
+Antes de usar Overview, Equipment y Reports con una base D1 local nueva, compila y aplica, en orden, los archivos `drizzle/*.sql` con Wrangler y `--local --config dist/server/wrangler.json --persist-to .wrangler/state`. Las migraciones ya aplicadas no deben ejecutarse de nuevo sobre la misma base.
+
+En producción, las API de PM requieren la identidad autenticada que entrega Sites, D1/R2 y `IDENTITY_HMAC_SECRET`. El secreto se configura en el entorno de despliegue y no debe guardarse en Git. El identificador de propietario sigue derivándose del correo autenticado para conservar el acceso a los PM beta existentes; el correo no se guarda en los registros.
 
 ## Estado de la beta
 

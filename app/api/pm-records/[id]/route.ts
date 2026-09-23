@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { pmEvents, pmRecords } from "../../../../db/schema";
 import { requireActorSubject } from "../_identity";
@@ -19,20 +19,13 @@ export async function GET(request: Request, context: RouteContext) {
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          eq(pmRecords.ownerSubject, actorSubject),
           isNull(pmRecords.deletedAt),
         ),
       )
       .limit(1);
 
     if (!record) return Response.json({ error: "PM record not found." }, { status: 404 });
-    if (!record.ownerSubject) {
-      await db
-        .update(pmRecords)
-        .set({ ownerSubject: actorSubject, ownerEmail: null })
-        .where(and(eq(pmRecords.id, id), isNull(pmRecords.ownerSubject)));
-    }
-
     const events = await db
       .select({
         eventType: pmEvents.eventType,
@@ -83,7 +76,7 @@ export async function PUT(request: Request, context: RouteContext) {
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          eq(pmRecords.ownerSubject, actorSubject),
           isNull(pmRecords.deletedAt),
         ),
       )

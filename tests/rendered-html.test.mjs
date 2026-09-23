@@ -80,8 +80,13 @@ test("includes D1 draft persistence, audit history and data minimization", async
   assert.match(recordRoute, /eventType: "draft_saved"/);
   assert.match(recordRoute, /status: 409/);
   assert.match(recordRoute, /A signed PM cannot be edited/);
+  assert.doesNotMatch(collectionRoute, /isNull\(pmRecords\.ownerSubject\)/);
+  assert.doesNotMatch(recordRoute, /isNull\(pmRecords\.ownerSubject\)/);
+  assert.doesNotMatch(signatureRoute, /isNull\(pmRecords\.ownerSubject\)/);
   assert.match(identityRoute, /HMAC/);
   assert.match(identityRoute, /IDENTITY_HMAC_SECRET/);
+  assert.match(identityRoute, /oai-authenticated-user-id/);
+  assert.match(identityRoute, /process\.env\.NODE_ENV === "development"/);
   assert.match(signatureRoute, /PM_RECEIPT_V1/);
   assert.match(signatureRoute, /PM_TECHNICIAN_RESPONSIBILITY_V1/);
   assert.match(signatureRoute, /setUTCFullYear\(retentionUntil\.getUTCFullYear\(\) \+ SIX_YEARS\)/);
@@ -104,6 +109,21 @@ test("includes D1 draft persistence, audit history and data minimization", async
   assert.match(signatureMigration, /recipient_signature_retention_until/);
   assert.match(technicianSignatureMigration, /technician_signature_retention_until/);
   assert.match(technicianSignatureMigration, /pm_records_technician_signature_retention_idx/);
+});
+
+test("uses dispatch-owned sign-in and a loopback-only local identity", async () => {
+  const [layout, auth, plugin] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/chatgpt-auth.ts", import.meta.url), "utf8"),
+    readFile(new URL("../build/sites-vite-plugin.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(layout, /requireChatGPTUser\("\/"\)/);
+  assert.match(layout, /dynamic = "force-dynamic"/);
+  assert.match(auth, /oai-authenticated-user-id/);
+  assert.match(plugin, /localAddresses\.has\(request\.socket\.remoteAddress/);
+  assert.match(plugin, /name\.startsWith\("oai-authenticated-user-"\)/);
+  assert.match(plugin, /HttpOnly; SameSite=Lax/);
 });
 
 test("activates Overview, Equipment and Reports with protected PM records", async () => {
