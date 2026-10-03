@@ -19,4 +19,3 @@ export function Choice({ value, onChange, label, disabled = false, allowNA = tru
     </div>
   );
 }
-

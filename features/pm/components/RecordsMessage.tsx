@@ -23,4 +23,3 @@ export function RecordsMessage({
   }
   return null;
 }
-

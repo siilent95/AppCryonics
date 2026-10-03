@@ -89,4 +89,3 @@ export type ExamValues = {
   temperatureUnit: string;
   levelUnit: string;
 };
-

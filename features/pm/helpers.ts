@@ -93,4 +93,3 @@ export function statusLabel(status: PmStatus) {
   if (status === "archived") return "Archived";
   return "Draft";
 }
-

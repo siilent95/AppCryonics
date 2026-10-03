@@ -119,4 +119,3 @@ export const emptyExam: ExamValues = {
   temperatureUnit: "",
   levelUnit: "",
 };
-
