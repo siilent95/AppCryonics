@@ -45,3 +45,5 @@ next-env.d.ts
 /tmp-dev.err.log
 /tmp-dev.pid
 *.tsbuildinfo
+
+!.env.example

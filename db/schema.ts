@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, pgTable, text, uniqueIndex, customType } from "drizzle-orm/pg-core";
 
-export const pmRecords = sqliteTable(
+export const pmRecords = pgTable(
   "pm_records",
   {
     id: text("id").primaryKey(),
@@ -45,8 +45,8 @@ export const pmRecords = sqliteTable(
     technicianSignatureAcceptanceVersion: text("technician_signature_acceptance_version"),
     technicianSignatureRetentionUntil: text("technician_signature_retention_until"),
     technicianSignatureDeletedAt: text("technician_signature_deleted_at"),
-    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text("created_at").notNull().default(sql`to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
+    updatedAt: text("updated_at").notNull().default(sql`to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
     deletedAt: text("deleted_at"),
   },
   (table) => [
@@ -65,10 +65,10 @@ export const pmRecords = sqliteTable(
   ],
 );
 
-export const pmEvents = sqliteTable(
+export const pmEvents = pgTable(
   "pm_events",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     recordId: text("record_id")
       .notNull()
       .references(() => pmRecords.id, { onDelete: "cascade" }),
@@ -87,10 +87,29 @@ export const pmEvents = sqliteTable(
     actorEmail: text("actor_email"),
     revision: integer("revision").notNull(),
     detailsJson: text("details_json"),
-    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text("created_at").notNull().default(sql`to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`),
   },
   (table) => [
     index("pm_events_record_created_idx").on(table.recordId, table.createdAt),
     index("pm_events_actor_created_idx").on(table.actorSubject, table.createdAt),
   ],
 );
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+export const pmSignatures = pgTable("pm_signatures", {
+  key: text("key").primaryKey(), data: bytea("data").notNull(),
+  contentType: text("content_type").notNull(), metadataJson: text("metadata_json").notNull(),
+});
+export const users = pgTable("users", {
+  id: text("id").primaryKey(), email: text("email").notNull().unique(),
+  displayName: text("display_name").notNull(), passwordHash: text("password_hash").notNull(),
+  disabled: integer("disabled").notNull().default(0),
+});
+export const sessions = pgTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+});
+export const loginAttempts = pgTable("login_attempts", {
+  key: text("key").primaryKey(), attempts: integer("attempts").notNull(), resetAt: text("reset_at").notNull(),
+});

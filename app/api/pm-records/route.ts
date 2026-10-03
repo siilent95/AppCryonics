@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { getDb } from "../../../db";
+import { getDb, transactionalResponse } from "../../../db";
 import { pmEvents, pmRecords } from "../../../db/schema";
 import { requireActorSubject } from "./_identity";
 import { purgeExpiredSignatures } from "./_retention";
@@ -50,6 +50,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { return await transactionalResponse(() => mutate(request)); }
+  catch (error) { return apiError(error); }
+}
+
+async function mutate(request: Request) {
   try {
     const input = validateDraftInput((await request.json()) as DraftInput);
     const actorSubject = await requireActorSubject(request);

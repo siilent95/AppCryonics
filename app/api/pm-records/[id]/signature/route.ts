@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { getDb } from "../../../../../db";
+import { getDb, transactionalResponse } from "../../../../../db";
 import { pmEvents, pmRecords } from "../../../../../db/schema";
 import { requireActorSubject } from "../../_identity";
 import { purgeExpiredSignatures } from "../../_retention";
@@ -79,6 +79,11 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  try { return await transactionalResponse(() => mutate(request, context)); }
+  catch (error) { return apiError(error); }
+}
+
+async function mutate(request: Request, context: RouteContext) {
   let storedKeys: string[] = [];
   try {
     const { id } = await context.params;

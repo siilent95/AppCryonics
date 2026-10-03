@@ -789,3 +789,10 @@ h1 { font-size: 26px; letter-spacing: -.7px; line-height: 1.1; margin: 0; }
   .workOrderContent .assetIdentity { min-width: 0; }
   .workOrderContent .stepper button { min-height: 55px; }
 }
+
+:root { --font-geist-sans: Arial, Helvetica, sans-serif; --font-geist-mono: Consolas, monospace; }
+.accountBar { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; padding: .5rem 1rem; background: #f4f7fa; font-size: .875rem; }
+.loginPanel { max-width: 400px; margin: 10vh auto; padding: 2rem; }
+.loginPanel label { display: block; margin: 1rem 0; }
+.loginPanel input { display: block; width: 100%; padding: .6rem; border: 1px solid #a4b0bb; border-radius: .3rem; }
+@media print { .accountBar { display: none; } }

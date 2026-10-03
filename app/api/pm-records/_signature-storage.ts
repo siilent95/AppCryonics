@@ -1,31 +1,19 @@
-import { env } from "cloudflare:workers";
-
-type StoredSignature = {
-  body: ReadableStream;
-  httpMetadata?: { contentType?: string };
-};
-
-type SignatureBucket = {
-  put(
-    key: string,
-    value: Uint8Array,
-    options: {
-      httpMetadata: { contentType: string };
-      customMetadata: Record<string, string>;
-    },
-  ): Promise<unknown>;
-  get(key: string): Promise<StoredSignature | null>;
-  delete(key: string | string[]): Promise<void>;
-};
-
-type SignatureEnvironment = {
-  SIGNATURES?: SignatureBucket;
-};
-
+import { eq, inArray } from "drizzle-orm";
+import { getDb } from "../../../db";
+import { pmSignatures } from "../../../db/schema";
 export function getSignatureBucket() {
-  const bucket = (env as unknown as SignatureEnvironment).SIGNATURES;
-  if (!bucket) {
-    throw new Error("Signature storage binding is unavailable.");
-  }
-  return bucket;
+  const db = getDb();
+  return {
+    async put(key: string, value: Uint8Array, options: { httpMetadata: { contentType: string }; customMetadata: Record<string, string> }) {
+      await db.insert(pmSignatures).values({ key, data: Buffer.from(value), contentType: options.httpMetadata.contentType, metadataJson: JSON.stringify(options.customMetadata) });
+    },
+    async get(key: string) {
+      const [signature] = await db.select().from(pmSignatures).where(eq(pmSignatures.key, key)).limit(1);
+      return signature ? { body: new Uint8Array(signature.data).buffer, httpMetadata: { contentType: signature.contentType } } : null;
+    },
+    async delete(keys: string | string[]) {
+      const list = typeof keys === "string" ? [keys] : keys;
+      if (list.length) await db.delete(pmSignatures).where(inArray(pmSignatures.key, list));
+    },
+  };
 }

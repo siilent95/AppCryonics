@@ -115,10 +115,10 @@ export function apiError(error: unknown) {
     return Response.json({ error: error.message }, { status: 400 });
   }
   const message = error instanceof Error ? error.message : "Unexpected server error";
-  if (message.includes("no such table") || message.includes("D1 binding")) {
+  if (message.includes("does not exist") || message.includes("DATABASE_URL")) {
     return Response.json({ error: "PM storage is not initialized." }, { status: 503 });
   }
-  if (message.includes("pseudonymization") || message.includes("Signature storage")) {
+  if (message.includes("APP_ORIGIN")) {
     return Response.json({ error: "Protected PM storage is not configured." }, { status: 503 });
   }
   return Response.json({ error: "Unable to process the PM record." }, { status: 500 });
