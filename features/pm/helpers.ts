@@ -33,8 +33,9 @@ export function inOpenRange(value: string, min: number, max: number) {
 
 
 export function normalizeDecimal(value: string, allowNegative: boolean) {
-  const sign = allowNegative && value.trimStart().startsWith("-") ? "-" : "";
-  const unsigned = value.replace(/[^\d.]/g, "");
+  const localized = value.replace(/−/g, "-").replace(/,/g, ".");
+  const sign = allowNegative && localized.trimStart().startsWith("-") ? "-" : "";
+  const unsigned = localized.replace(/[^\d.]/g, "");
   const [whole, ...decimals] = unsigned.split(".");
   const normalized = decimals.length > 0 ? `${whole}.${decimals.join("")}` : whole;
   return `${sign}${normalized}`;
@@ -92,4 +93,11 @@ export function statusLabel(status: PmStatus) {
   if (status === "ready_for_signature") return "Ready for signatures";
   if (status === "archived") return "Archived";
   return "Draft";
+}
+
+export function recordBrandLabel(record: { brand: BrandKey; equipmentBrandName?: string | null }) {
+  return record.equipmentBrandName || brandLabel(record.brand);
+}
+export function recordBrandKey(record: { brand: BrandKey; equipmentBrandId?: string | null }) {
+  return record.equipmentBrandId || record.brand;
 }

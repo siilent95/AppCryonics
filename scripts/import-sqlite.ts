@@ -48,6 +48,10 @@ try {
     const owner = owners[String(row.owner_subject)];
     if (!owner || !knownUsers.has(owner)) throw new Error("Every PM owner must map to an existing CryoPM account.");
     row.owner_subject = owner;
+    const creator = events.find(event => event.record_id === row.id && event.event_type === "created")?.actor_subject;
+    const mappedCreator = creator ? owners[String(creator)] : owner;
+    if (!mappedCreator || !knownUsers.has(mappedCreator)) throw new Error("Every PM creator must map to an existing CryoPM account.");
+    row.created_by = mappedCreator;
     row.owner_email = null;
     for (const role of ["recipient", "technician"]) {
       const key = row[`${role}_signature_key`];

@@ -1,89 +1,76 @@
 "use client";
-import type { BrandKey, WorkspaceView, RecordsStatus, EquipmentRegistryItem } from "@/features/pm/types";
+import { useEffect, useRef, useState } from "react";
+import type { CatalogModel } from "@/features/equipment/types";
+import type { useEquipmentCatalog } from "@/features/equipment/useEquipmentCatalog";
+import { BrandDialog, ModelDialog, DatasheetDialog } from "@/features/equipment/CatalogDialogs";
+export function EquipmentView({ catalogState, isAdmin, onUseModel }: { catalogState: ReturnType<typeof useEquipmentCatalog>; isAdmin: boolean; onUseModel: (model: CatalogModel) => void }) {
+ const { catalog, status, error, refresh } = catalogState;
+ const [selectedId, setSelectedId] = useState("");
+ const detailPanel = useRef<HTMLElement>(null);
+ const familyCards = useRef<HTMLElement>(null);
+ const selected = catalog.models.find(model => model.id === selectedId);
+ const familyKey = selected ? JSON.stringify([selected.brandId, selected.family]) : "";
+ useEffect(() => {
+  if (familyKey) {
+   detailPanel.current?.focus({ preventScroll: true });
+   detailPanel.current?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+ }, [familyKey]);
+ const [query, setQuery] = useState(""); const [brandFilter, setBrandFilter] = useState("all");
+ const [editor, setEditor] = useState<"brand" | "editBrand" | "new" | "edit" | null>(null);
+ const [document, setDocument] = useState<CatalogModel | null>(null); const [notice, setNotice] = useState("");
+ const name = (id: string) => catalog.brands.find(b => b.id === id)?.name || id;
+ const families = Array.from(catalog.models.reduce((groups, model) => {
+  const key = JSON.stringify([model.brandId, model.family]);
+  const family = groups.get(key);
+  if (family) family.models.push(model);
+  else groups.set(key, { key, brandId: model.brandId, name: model.family, models: [model] });
+  return groups;
+ }, new Map<string, { key: string; brandId: string; name: string; models: CatalogModel[] }>()).values()).sort((a, b) => name(a.brandId).localeCompare(name(b.brandId)) || a.name.localeCompare(b.name, "en", { numeric: true }));
+ families.forEach(family => family.models.sort((a, b) => a.model.localeCompare(b.model, "en", { numeric: true })));
+ const matches = (model: CatalogModel) => !query.trim() || [name(model.brandId), model.family, model.model, model.description].join(" ").toLowerCase().includes(query.trim().toLowerCase());
+ const filtered = families.filter(family => (brandFilter === "all" || family.brandId === brandFilter) && family.models.some(matches));
+ const selectedFamily = families.find(family => family.key === familyKey);
+ const brand = catalog.brands.find(b => b.id === selected?.brandId);
+ function backToFamilies() { setSelectedId(""); requestAnimationFrame(() => familyCards.current?.focus()); }
+ async function saved(id: string, message: string) { setSelectedId(id); setQuery(""); setBrandFilter("all"); await refresh(); setNotice(message); }
+ return <div className="managementView equipmentCatalog">
+  <section className="viewHero"><div><div className="eyebrow">Equipment library</div><h1>Equipment</h1></div>{isAdmin && <div className="catalogActions"><button type="button" className="ghostButton" onClick={() => setEditor("brand")}>Add brand</button><button type="button" className="primaryAction" disabled={status !== "loaded" || !catalog.brands.length} onClick={() => setEditor("new")}>Add model</button></div>}</section>
+  <div className="catalogSummary"><span><strong>{catalog.brands.length}</strong> brands</span><span><strong>{families.length}</strong> families</span><span><strong>{catalog.models.length}</strong> models</span></div>
+  {notice && <p className="accountNotice" role="status">{notice}</p>}
+  {status === "loading" && <p role="status">Loading the equipment catalog…</p>}
+  {status === "error" && <div className="accountError" role="alert"><p>{error}</p><button className="ghostButton" onClick={() => void refresh()} type="button">Retry catalog</button></div>}
+  {status === "loaded" && <>
+   {!selected && <>
+   <div className="catalogFilters"><label>Search models<input value={query} onChange={e => setQuery(e.target.value)} placeholder="Brand, series or model" /></label><label>Brand<select value={brandFilter} onChange={e => setBrandFilter(e.target.value)}><option value="all">All brands</option>{catalog.brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label><button type="button" className="ghostButton" onClick={() => void refresh()}>Refresh catalog</button></div>
+   <section ref={familyCards} tabIndex={-1} className="catalogCards catalogFamilyCards" aria-label="Equipment families">{filtered.map(family => {
+    const image = family.models.find(model => model.imageUrl && model.imageScope === "family") || family.models.find(model => model.imageUrl);
+    const matchingModels = family.models.filter(matches);
+    return <button className="catalogCard" key={family.key} type="button" onClick={() => setSelectedId(matchingModels[0].id)}>
+     <div className="catalogPhoto">{image?.imageUrl ? <img src={image.imageUrl} alt={`${family.name} equipment reference`} loading="lazy" /> : <span>No image yet</span>}</div>
+     <div className="catalogCardText"><small>{name(family.brandId)}</small><strong>{family.name}</strong><span>{family.models.length} {family.models.length === 1 ? "model" : "models"}</span><div className="catalogFamilyPreview">{matchingModels.map(model => model.model).join(" · ")}</div><div className="catalogFamilyOpen">Explore models <span aria-hidden="true">→</span></div></div>
+    </button>;
+   })}{!filtered.length && <div className="viewMessage"><strong>No families match the filters</strong><span>Change the search or select another brand.</span></div>}</section>
+   </>}
+   {selected && selectedFamily && <section ref={detailPanel} tabIndex={-1} className="catalogFamilyDetail" aria-label="Selected equipment family">
+    <button type="button" className="ghostButton catalogBack" onClick={backToFamilies}><span aria-hidden="true">← </span>All families</button>
+    <div className="catalogFamilyHeading"><div><p>{brand?.name}</p><h2>{selectedFamily.name}</h2></div><span>{selectedFamily.models.length} {selectedFamily.models.length === 1 ? "model" : "models"}</span></div>
+    <div className="catalogModelPicker" role="group" aria-label="Choose a model">{selectedFamily.models.map(model => <button type="button" className={model.id === selected.id ? "selected" : ""} key={model.id} aria-pressed={model.id === selected.id} onClick={() => setSelectedId(model.id)}>{model.model}{!model.active && <small>Inactive</small>}</button>)}</div>
+    <aside className="catalogDetail analytics-panel" aria-label="Selected model details">
+    <div className="catalogModelInformation">
+    <div className="catalogDetailHeading"><div><p>{brand?.name}{isAdmin && <button type="button" className="catalogBrandEdit" onClick={() => setEditor("editBrand")}>Edit brand</button>}</p><h2>{selected.model}</h2><span>{selected.family}</span></div>{isAdmin && <button type="button" className="ghostButton" onClick={() => setEditor("edit")}>Edit model</button>}</div>
+    <div className="catalogDetailActions">{selected.datasheetUrl ? <button type="button" className="primaryAction" onClick={() => setDocument(selected)}>View datasheet</button> : <p>No datasheet uploaded yet.</p>}{selected.active && brand?.pmTemplate && <button type="button" className="ghostButton" onClick={() => onUseModel(selected)}>Use model in PM</button>}</div>
+    {selected.description && <p className="catalogDescription">{selected.description}</p>}
+    {selected.specifications && <section className="catalogSpecs"><h3>Basic specifications</h3><p>{selected.specifications}</p></section>}
+    {selected.controllers.length > 0 && <p className="catalogControllers"><strong>Controllers</strong>{selected.controllers.join(" · ")}</p>}
 
-import { formatDate, freezerImage, brandLabel, statusLabel } from "@/features/pm/helpers";
-import { RecordsMessage } from "@/features/pm/components/RecordsMessage";
-import { useState } from "react";
-export function EquipmentView({
-  equipmentRecords,
-  error,
-  onNavigate,
-  onRetry,
-  status,
-}: {
-  equipmentRecords: EquipmentRegistryItem[];
-  error: string;
-  onNavigate: (view: WorkspaceView) => void;
-  onRetry: () => void;
-  status: RecordsStatus;
-}) {
-  const [query, setQuery] = useState("");
-  const [serialFilter, setSerialFilter] = useState("");
-  const [brandFilter, setBrandFilter] = useState<"all" | BrandKey>("all");
-  const [selectedKey, setSelectedKey] = useState("");
-  if (status !== "loaded") return <RecordsMessage error={error} onRetry={onRetry} status={status} />;
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const filtered = equipmentRecords.filter((record) => {
-    const matchesBrand = brandFilter === "all" || record.brand === brandFilter;
-    const searchable = [
-      record.freezerSerial,
-      record.modelFamily,
-      record.model,
-      record.labName,
-      record.location,
-      record.controllerType,
-    ].filter(Boolean).join(" ").toLowerCase();
-    return matchesBrand && (!normalizedQuery || searchable.includes(normalizedQuery)) && (!serialFilter.trim() || (record.freezerSerial || "").toLowerCase().includes(serialFilter.trim().toLowerCase()));
-  });
-  const selectedRecord = filtered.find((record) => `${record.brand}:${record.freezerSerial || record.id}` === selectedKey) ?? filtered[0];
-  const selectedImage = selectedRecord ? freezerImage(selectedRecord.brand, selectedRecord.modelFamily, selectedRecord.model) : null;
-
-  return (
-    <div className="managementView">
-      <section className="viewHero">
-        <div>
-          <div className="eyebrow">Equipment registry</div>
-          <h1>Equipment</h1>
-          <p>Freezers are created from saved PM identification records. Models remain controlled by the approved MVE and Taylor-Wharton lists.</p>
-        </div>
-        <div className="viewCount"><strong>{equipmentRecords.length}</strong><span>Tracked units</span></div>
-      </section>
-
-      <div className="kairosEquipmentLayout"><section className="dataPanel">
-        <div className="filterBar">
-          <label><span>Search equipment</span><input onChange={(event) => setQuery(event.target.value)} placeholder="Serial, model, lab or location" value={query} /></label>
-          <label><span>Serial number</span><input aria-label="Filter equipment by serial number" onChange={(event) => setSerialFilter(event.target.value)} placeholder="Enter freezer serial" value={serialFilter} /></label>
-          <label><span>Brand</span><select onChange={(event) => setBrandFilter(event.target.value as "all" | BrandKey)} value={brandFilter}><option value="all">All brands</option><option value="mve">MVE</option><option value="taylor">Taylor-Wharton</option></select></label>
-        </div>
-        <div className="tableWrap">
-          <table className="recordsTable">
-            <thead><tr><th>Equipment</th><th>Model</th><th>Lab and location</th><th>Controller</th><th>PM history</th><th>Latest status</th></tr></thead>
-            <tbody>
-              {filtered.map((record) => (
-                <tr className={record.id === selectedRecord?.id ? "selectedEquipmentRow" : ""} key={`${record.brand}:${record.freezerSerial || record.id}`}>
-                  <td><div className="tableIdentity"><span className={`brandToken ${record.brand}`}>{record.brand === "mve" ? "MV" : "TW"}</span><div><button aria-label={`View equipment ${record.freezerSerial || record.id}`} className="equipmentSelect" onClick={() => setSelectedKey(`${record.brand}:${record.freezerSerial || record.id}`)} type="button">{record.freezerSerial || "Serial not recorded"}</button><small>{brandLabel(record.brand)}</small></div></div></td>
-                  <td><strong>{record.modelFamily}</strong><small>{record.model}</small></td>
-                  <td><strong>{record.labName || "Lab pending"}</strong><small>{record.location || record.facility || "Location pending"}</small></td>
-                  <td><strong>{record.controllerType || "Not recorded"}</strong><small>{record.controllerSerial || "Serial pending"}</small></td>
-                  <td><strong>{record.historyCount} PM record{record.historyCount === 1 ? "" : "s"}</strong><small>{record.completedCount} completed</small></td>
-                  <td><span className={`recordStatus ${record.status}`}>{statusLabel(record.status)}</span><small>Updated {formatDate(record.updatedAt)}</small></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div className="emptyState"><strong>No equipment matches the filters</strong><span>Change the search or brand selection.</span></div>}
-        </div>
-      </section>
-      <aside className="kairosEquipmentDetail" aria-live="polite">
-        {selectedRecord && selectedImage ? <>
-          <div className="kairosEquipmentImage" role="img" aria-label={`${brandLabel(selectedRecord.brand)} ${selectedRecord.model} freezer reference`} style={{ backgroundImage: `url("${selectedImage.src}")` }} />
-          <div className="kairosEquipmentInfo"><div className="eyebrow">Selected equipment</div><h2>{selectedRecord.modelFamily}</h2><p>{selectedRecord.model} · {selectedRecord.freezerSerial || "Serial not recorded"}</p>
-            <dl><div><dt>Lab</dt><dd>{selectedRecord.labName || "Not recorded"}</dd></div><div><dt>Location</dt><dd>{selectedRecord.location || selectedRecord.facility || "Not recorded"}</dd></div><div><dt>Controller</dt><dd>{selectedRecord.controllerType || "Not recorded"}</dd></div><div><dt>PM history</dt><dd>{selectedRecord.historyCount} records</dd></div></dl>
-            <button onClick={() => onNavigate("reports")} type="button">Open Reports</button>
-          </div>
-        </> : <div className="kairosEquipmentMissing">No equipment matches the filters.</div>}
-      </aside></div>
-    </div>
-  );
+    {!brand?.pmTemplate && <p className="catalogPending">PM template pending. This model is available for consultation; it can be used in a PM after its template is configured.</p>}
+    </div><div className="catalogModelVisual"><div className="catalogPhoto catalogDetailPhoto">{selected.imageUrl ? <img src={selected.imageUrl} alt={`${brand?.name} ${selected.model}`} /> : <span>No image yet</span>}</div>
+    {selected.imageUrl && <p className="catalogImageNote">{selected.imageScope === "model" ? "Model image" : "Series reference image · verify the equipment label"}{selected.imageSource && <> · <a href={selected.imageSource} target="_blank" rel="noreferrer">Source</a></>}</p>}</div>
+   </aside></section>}
+  </>}
+  {(editor === "brand" || editor === "editBrand") && <BrandDialog brand={editor === "editBrand" ? brand : undefined} onClose={() => setEditor(null)} onSaved={async () => { await refresh(); setNotice("Brand saved. Its PM template is available for new PM selections."); }} />}
+  {(editor === "new" || (editor === "edit" && selected)) && <ModelDialog model={editor === "edit" ? selected : undefined} brands={catalog.brands} onClose={() => setEditor(null)} onSaved={saved} />}
+  {document && <DatasheetDialog model={document} brand={name(document.brandId)} onClose={() => setDocument(null)} />}
+ </div>;
 }

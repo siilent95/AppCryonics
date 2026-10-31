@@ -1,7 +1,7 @@
 "use client";
 import type { InspectionStep, ChecklistItem, ExamValues } from "@/features/pm/types";
-import { steps, constructionItems, operationItems, verificationItems, modelCatalog } from "@/features/pm/catalogs";
-import { controllerOptions, freezerImage } from "@/features/pm/helpers";
+import { steps, constructionItems, operationItems, verificationItems } from "@/features/pm/catalogs";
+import { freezerImage } from "@/features/pm/helpers";
 import { Choice } from "@/features/pm/components/Choice";
 
 import { SignaturePad } from "@/features/pm/components/SignaturePad";
@@ -13,6 +13,7 @@ import { SignaturePad } from "@/features/pm/components/SignaturePad";
 import type { usePmWorkspace } from "./usePmWorkspace";
 export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof usePmWorkspace> }) {
   const {
+    isCorrection,
     brand,
     family,
     model,
@@ -81,6 +82,11 @@ export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof us
     signatureRetentionUntil,
     selectedEquipment,
     selectedFamily,
+    availableFamilies,
+    selectedCatalogModel,
+    modelControllers,
+    catalogState,
+    catalogBrandId,
     currentIndex,
     getResponse,
     validation,
@@ -155,6 +161,8 @@ export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof us
         <span>{steps.find((step) => step.key === section)?.label} observations {required ? "· Required" : "· Optional"}</span>
         <textarea
           aria-label={`${section} observations`}
+          required={required}
+          aria-invalid={required && !notes[section].trim()}
           onChange={(event) => setNotes((current) => ({ ...current, [section]: event.target.value }))}
           placeholder="Document findings, corrective actions and the reason for any N/A selection. Do not enter patient, sample or clinical data."
           value={notes[section]}
@@ -177,41 +185,46 @@ export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof us
         <div className="dataInput">
           <input
             aria-label={label}
-            inputMode="decimal"
+            aria-invalid={!!warning || (key === "highTemperature" || key === "lowTemperature" ? !temperatureOrderValid : key === "highLevelAlarm" || key === "lowLevelAlarm" ? !levelAlarmOrderValid : key === "highLevelSetPoint" || key === "lowLevelSetPoint" ? !levelSetPointOrderValid : false)}
+            aria-describedby={[warning && `exam-${key}-warning`, (key === "highTemperature" || key === "lowTemperature") && !temperatureOrderValid && "temperature-order-error", (key === "highLevelAlarm" || key === "lowLevelAlarm") && !levelAlarmOrderValid && "level-alarm-error", (key === "highLevelSetPoint" || key === "lowLevelSetPoint") && !levelSetPointOrderValid && "level-setpoint-error"].filter(Boolean).join(" ") || undefined}
+            inputMode={kind === "temperature" ? "text" : "decimal"}
+            autoCorrect="off" autoCapitalize="none" spellCheck={false}
             onChange={(event) => updateExamNumeric(key, event.target.value, kind)}
             placeholder={placeholder}
             value={examValues[key]}
           />
           <b>{unit}</b>
         </div>
-        {warning && <small className="numericWarning">{warning}</small>}
+        {warning && <small className="numericWarning" id={`exam-${key}-warning`} role="status">{warning}</small>}
       </label>
     );
   }
 
 return (
-<>
+<fieldset className="pmFormFields" aria-label="PM form" disabled={completionStatus === "completed" || workspace.closingPm}>
           <section className="orderHero">
             <div>
               <div className="eyebrow">Preventive maintenance · PM v0.2</div>
               <div className="titleRow"><h1>{selectedEquipment.label} {model}</h1><span className={completionStatus === "completed" ? "completedStatus" : "inProgress"}>{completionStatus === "completed" ? "Completed" : "In progress"}</span></div>
-              <p>Complete every applicable PM field before review.</p>
+
               <div className="brandSelector" aria-label="Equipment brand">
                 <span>Equipment:</span>
-                <button className={brand === "taylor" ? "active" : ""} onClick={() => selectBrand("taylor")} type="button">Taylor-Wharton</button>
-                <button className={brand === "mve" ? "active" : ""} onClick={() => selectBrand("mve")} type="button">MVE</button>
+                <select aria-label="Equipment brand" value={catalogBrandId} disabled={!!workspace.draftId || catalogState.status !== "loaded"} onChange={event => selectBrand(event.target.value)}>{catalogState.catalog.brands.filter(b => b.pmTemplate && catalogState.catalog.models.some(model => model.brandId === b.id && model.active)).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
               </div>
             </div>
             <div className="assetIdentity">
-              <div className="assetVisual"><img alt="" src={freezerImage(brand, family, model).src} /></div>
+              <div className="assetVisual"><img alt="" width={56} height={56} decoding="async" src={selectedCatalogModel?.imageUrl || freezerImage(brand, family, model).src} /></div>
               <div><small>Selected equipment</small><strong>{family} · {model}</strong><span>{controllerType}</span></div>
             </div>
           </section>
 
+          <p className="pmProgressHelp">{workspace.draftRecordNumber ? `${workspace.draftRecordNumber} · ` : ""}Save your draft before closing or refreshing the app.</p>
+          {saveStatus === "error" && <p className="accountError" role="alert">{saveError}</p>}
+          {catalogState.status !== "loaded" && <div className="pmCatalogNotice" role="status">{catalogState.status === "error" ? catalogState.error : "Loading equipment catalog…"}<button className="ghostButton" type="button" onClick={() => void catalogState.refresh()}>Reload catalog</button></div>}
           <section className="equipmentIdentification" aria-labelledby="equipment-identification-title">
             <div className="identificationHeading">
               <div><span>ID</span><div><p>Required before inspection</p><h2 id="equipment-identification-title">Equipment identification</h2></div></div>
-              <small>Use equipment labels only. Do not enter patient, sample or clinical data.</small>
+              <small>Use equipment and organization details only. Do not enter patient, sample, clinical or credential information.</small>
             </div>
             <div className="identificationGrid">
               {brand === "mve" && (
@@ -235,10 +248,10 @@ return (
               <div className="identificationField modelField">
                 <span>Freezer model</span>
                 <div className="nestedSelects">
-                  <select aria-label="Equipment series or family" onChange={(event) => selectFamily(event.target.value)} value={family}>
-                    {modelCatalog[brand].map((item) => <option key={item.family} value={item.family}>{item.family}</option>)}
+                  <select disabled={!!workspace.draftId || catalogState.status !== "loaded"} aria-label="Equipment series or family" onChange={(event) => selectFamily(event.target.value)} value={family}>
+                    {availableFamilies.map((item) => <option key={item.family} value={item.family}>{item.family}</option>)}
                   </select>
-                  <select aria-label="Equipment model" onChange={(event) => selectModel(event.target.value)} value={model}>
+                  <select disabled={!!workspace.draftId || catalogState.status !== "loaded"} aria-label="Equipment model" onChange={(event) => selectModel(event.target.value)} value={model}>
                     {selectedFamily.models.map((item) => <option key={item} value={item}>{item}</option>)}
                   </select>
                 </div>
@@ -267,7 +280,9 @@ return (
                   ? <input aria-label="Controller type" onChange={(event) => setControllerType(event.target.value)} placeholder="Enter controller type" value={controllerType} />
                   : (
                     <select aria-label="Controller type" onChange={(event) => setControllerType(event.target.value)} value={controllerType}>
-                      {controllerOptions(brand, family, model).map((item) => <option key={item} value={item}>{item}</option>)}
+                      {!controllerType && <option value="">Select controller</option>}
+                      {controllerType && !modelControllers.includes(controllerType) && <option value={controllerType}>{controllerType} · recorded</option>}
+                      {modelControllers.map((item) => <option key={item} value={item}>{item}</option>)}
                     </select>
                   )}
               </label>
@@ -280,6 +295,8 @@ return (
               <button
                 className={`${activeStep === step.key ? "current" : ""} ${completionByStep[step.key] ? "complete" : ""}`}
                 disabled={index > accessibleThrough}
+                aria-label={`Step ${index + 1}: ${step.label}${completionByStep[step.key] ? " · Complete" : ""}`}
+                aria-current={activeStep === step.key ? "step" : undefined}
                 key={step.key}
                 onClick={() => setActiveStep(step.key)}
                 type="button"
@@ -294,7 +311,7 @@ return (
             <section className="formPanel">
               <div className="sectionHeading">
                 <div><span className="sectionCode">{steps[currentIndex].short}</span><div><p>COVE inspection</p><h2>{steps[currentIndex].label}</h2></div></div>
-                <span className="requiredLabel">Required fields</span>
+
               </div>
 
               {activeStep === "construction" && renderChecklist("construction", constructionItems)}
@@ -328,10 +345,10 @@ return (
                         const numericWarning = numericWarnings[measurement.key];
                         return (
                           <article className={`measurementCard ${invalid ? "invalid" : ""}`} key={measurement.title}>
-                            <div className="measurementTop"><div><span className="questionNumber">{String(index + 11).padStart(2, "0")}</span><h3>{measurement.title}</h3></div><span className="rangePill">{measurement.min} &lt; R &lt; {measurement.max} Ω</span></div>
-                            <label className="measureInput"><span>Measured value</span><div><input aria-label={measurement.title} inputMode="decimal" onChange={(event) => updateNumericValue(measurement.key, event.target.value, measurement.setValue, "nonnegative")} placeholder="Required" value={measurement.value} /><b>Ω</b></div></label>
-                            {numericWarning && <div className="inputWarning">{numericWarning}</div>}
-                            {invalid && <div className="hardStopAlert"><span>!</span><div><strong>Hard stop · Value outside approved range</strong><p>Enter a value greater than {measurement.min} Ω and less than {measurement.max} Ω.</p></div></div>}
+                            <div className="measurementTop"><div><span className="questionNumber">{String(index + 11).padStart(2, "0")}</span><h3>{measurement.title}</h3></div><span className="rangePill" id={`${measurement.key}-range`}>{measurement.min} &lt; R &lt; {measurement.max} Ω</span></div>
+                            <label className="measureInput"><span>Measured value</span><div><input aria-label={measurement.title} aria-invalid={invalid || !!numericWarning} aria-describedby={[`${measurement.key}-range`, numericWarning && `${measurement.key}-warning`, invalid && `${measurement.key}-error`].filter(Boolean).join(" ")} inputMode="decimal" onChange={(event) => updateNumericValue(measurement.key, event.target.value, measurement.setValue, "nonnegative")} placeholder="Required" value={measurement.value} /><b>Ω</b></div></label>
+                            {numericWarning && <div className="inputWarning" id={`${measurement.key}-warning`} role="status">{numericWarning}</div>}
+                            {invalid && <div className="hardStopAlert" id={`${measurement.key}-error`} role="status"><span>!</span><div><strong>Reading outside the permitted range</strong><p>Enter a value greater than {measurement.min} Ω and less than {measurement.max} Ω.</p></div></div>}
                           </article>
                         );
                       })}
@@ -344,12 +361,12 @@ return (
                     </div>
                     <label className="measureInput">
                       <span>Measured value</span>
-                      <div><input aria-label="Battery output voltage" disabled={batteryPresent !== "yes"} inputMode="decimal" onChange={(event) => updateNumericValue("battery-voltage", event.target.value, setBatteryVoltage, "signed")} placeholder={batteryPresent === "yes" ? "Required" : "Battery must be present"} value={batteryVoltage} /><b>VDC</b></div>
-                      {numericWarnings["battery-voltage"] && <small className="numericWarning">{numericWarnings["battery-voltage"]}</small>}
+                      <div><input aria-label="Battery output voltage" aria-invalid={batteryAboveMaximum || !!numericWarnings["battery-voltage"]} aria-describedby={["battery-range", batteryAboveMaximum && "battery-error", batteryLowVoltage && "battery-anomaly", numericWarnings["battery-voltage"] && "battery-voltage-warning"].filter(Boolean).join(" ")} disabled={batteryPresent !== "yes"} inputMode="text" autoCorrect="off" autoCapitalize="none" spellCheck={false} onChange={(event) => updateNumericValue("battery-voltage", event.target.value, setBatteryVoltage, "signed")} placeholder={batteryPresent === "yes" ? "Required" : "Battery must be present"} value={batteryVoltage} /><b>VDC</b></div>
+                      {numericWarnings["battery-voltage"] && <small className="numericWarning" id="battery-voltage-warning" role="status">{numericWarnings["battery-voltage"]}</small>}
                     </label>
-                    <span className="nominalPill">{selectedEquipment.batteryNominal.toFixed(1)}–{batteryMaximum.toFixed(1)} VDC</span>
-                    {batteryLowVoltage && <div className="batteryStatusWarning"><strong>Battery anomaly · Below nominal voltage</strong><span>Document the anomaly in Operation observations before continuing.</span></div>}
-                    {batteryAboveMaximum && <div className="hardStopAlert batteryHardStop"><span>!</span><div><strong>Hard stop · Value exceeds the documented range</strong><p>Verify the measurement. The maximum expected value is {batteryMaximum.toFixed(1)} VDC.</p></div></div>}
+                    <span className="nominalPill" id="battery-range">{selectedEquipment.batteryNominal.toFixed(1)}–{batteryMaximum.toFixed(1)} VDC</span>
+                    {batteryLowVoltage && <div className="batteryStatusWarning" id="battery-anomaly" role="status"><strong>Battery anomaly · Below nominal voltage</strong><span>Document the anomaly in Operation observations before continuing.</span></div>}
+                    {batteryAboveMaximum && <div className="hardStopAlert batteryHardStop" id="battery-error" role="status"><span>!</span><div><strong>Reading above the permitted range</strong><p>Verify the measurement. The maximum expected value is {batteryMaximum.toFixed(1)} VDC.</p></div></div>}
                   </div>
                   {renderSectionNotes(
                     "operation",
@@ -395,10 +412,10 @@ return (
                       const numericWarning = numericWarnings[measurement.key];
                       return (
                         <article className={`measurementCard ${invalid ? "invalid" : ""}`} key={measurement.title}>
-                          <div className="measurementTop"><div><span className="questionNumber">{String(index + 2).padStart(2, "0")}</span><h3>{measurement.title}</h3></div><span className="rangePill">{measurement.min} &lt; R &lt; {measurement.max} Ω</span></div>
-                          <label className="measureInput"><span>Measured value</span><div><input aria-label={measurement.title} inputMode="decimal" onChange={(event) => updateNumericValue(measurement.key, event.target.value, measurement.setValue, "nonnegative")} placeholder="Required" value={measurement.value} /><b>Ω</b></div></label>
-                          {numericWarning && <div className="inputWarning">{numericWarning}</div>}
-                          {invalid && <div className="hardStopAlert"><span>!</span><div><strong>Hard stop · Value outside approved range</strong><p>Enter a value greater than {measurement.min} Ω and less than {measurement.max} Ω.</p></div></div>}
+                          <div className="measurementTop"><div><span className="questionNumber">{String(index + 2).padStart(2, "0")}</span><h3>{measurement.title}</h3></div><span className="rangePill" id={`${measurement.key}-range`}>{measurement.min} &lt; R &lt; {measurement.max} Ω</span></div>
+                          <label className="measureInput"><span>Measured value</span><div><input aria-label={measurement.title} aria-invalid={invalid || !!numericWarning} aria-describedby={[`${measurement.key}-range`, numericWarning && `${measurement.key}-warning`, invalid && `${measurement.key}-error`].filter(Boolean).join(" ")} inputMode="decimal" onChange={(event) => updateNumericValue(measurement.key, event.target.value, measurement.setValue, "nonnegative")} placeholder="Required" value={measurement.value} /><b>Ω</b></div></label>
+                          {numericWarning && <div className="inputWarning" id={`${measurement.key}-warning`} role="status">{numericWarning}</div>}
+                          {invalid && <div className="hardStopAlert" id={`${measurement.key}-error`} role="status"><span>!</span><div><strong>Reading outside the permitted range</strong><p>Enter a value greater than {measurement.min} Ω and less than {measurement.max} Ω.</p></div></div>}
                         </article>
                       );
                     })}
@@ -406,11 +423,11 @@ return (
                     <article className={`measurementCard ${manualLevel && controllerLevel && !validation.levelValid ? "invalid" : ""}`}>
                       <div className="measurementTop"><div><span className="questionNumber">04</span><h3>Liquid level verification</h3></div><span className="rangePill">Difference ≤ 0.5 in</span></div>
                       <div className="pairedInputs">
-                        <label className="measureInput"><span>Manually measured liquid level</span><div><input aria-label="Manual liquid level" inputMode="decimal" onChange={(event) => updateNumericValue("manual-level", event.target.value, setManualLevel, "nonnegative")} placeholder="Required" value={manualLevel} /><b>in</b></div>{numericWarnings["manual-level"] && <small className="numericWarning">{numericWarnings["manual-level"]}</small>}</label>
-                        <label className="measureInput"><span>Controller displayed level</span><div><input aria-label="Controller liquid level" inputMode="decimal" onChange={(event) => updateNumericValue("controller-level", event.target.value, setControllerLevel, "nonnegative")} placeholder="Required" value={controllerLevel} /><b>in</b></div>{numericWarnings["controller-level"] && <small className="numericWarning">{numericWarnings["controller-level"]}</small>}</label>
-                        <div className={`calculation ${validation.levelValid ? "pass" : "fail"}`}><span>Recorded difference</span><strong>{validation.difference} in</strong><small>{validation.levelValid ? "Within tolerance" : "Incomplete or hard stop"}</small></div>
+                        <label className="measureInput"><span>Manually measured liquid level</span><div><input aria-label="Manual liquid level" aria-invalid={!!numericWarnings["manual-level"] || !!(manualLevel && controllerLevel && !validation.levelValid)} aria-describedby={[numericWarnings["manual-level"] && "manual-level-warning", manualLevel && controllerLevel && !validation.levelValid && "level-difference-error"].filter(Boolean).join(" ") || undefined} inputMode="decimal" onChange={(event) => updateNumericValue("manual-level", event.target.value, setManualLevel, "nonnegative")} placeholder="Required" value={manualLevel} /><b>in</b></div>{numericWarnings["manual-level"] && <small className="numericWarning" id="manual-level-warning" role="status">{numericWarnings["manual-level"]}</small>}</label>
+                        <label className="measureInput"><span>Controller displayed level</span><div><input aria-label="Controller liquid level" aria-invalid={!!numericWarnings["controller-level"] || !!(manualLevel && controllerLevel && !validation.levelValid)} aria-describedby={[numericWarnings["controller-level"] && "controller-level-warning", manualLevel && controllerLevel && !validation.levelValid && "level-difference-error"].filter(Boolean).join(" ") || undefined} inputMode="decimal" onChange={(event) => updateNumericValue("controller-level", event.target.value, setControllerLevel, "nonnegative")} placeholder="Required" value={controllerLevel} /><b>in</b></div>{numericWarnings["controller-level"] && <small className="numericWarning" id="controller-level-warning" role="status">{numericWarnings["controller-level"]}</small>}</label>
+                        <div className={`calculation ${validation.levelValid ? "pass" : "fail"}`}><span>Recorded difference</span><strong>{validation.difference} in</strong><small>{validation.levelValid ? "Within tolerance" : "Check both readings"}</small></div>
                       </div>
-                      {manualLevel && controllerLevel && !validation.levelValid && <div className="hardStopAlert"><span>!</span><div><strong>Hard stop · Difference exceeds tolerance</strong><p>The maximum permitted difference is 0.5 in.</p></div></div>}
+                      {manualLevel && controllerLevel && !validation.levelValid && <div className="hardStopAlert" id="level-difference-error" role="status"><span>!</span><div><strong>Difference exceeds tolerance</strong><p>The maximum permitted difference is 0.5 in.</p></div></div>}
                     </article>
                   </div>
                   {renderChecklist("verification", verificationItems[brand], false)}
@@ -429,50 +446,9 @@ return (
               {activeStep === "examination" && (
                 <>
                   <div className="examContent">
-                    <div className="instructionBand"><div className="instructionMark">i</div><div><strong>Record controller configuration</strong><p>Select temperature and level units first, then enter the actual settings.</p></div></div>
-                    <section className="numericGroup" aria-labelledby="temperature-values-title">
-                      <div className="numericGroupHeader"><span>T</span><div><strong id="temperature-values-title">Temperature values</strong><p>Numbers only. Every temperature value must be negative.</p></div></div>
-                      <div className="numericFieldStack">
-                        {examField("highTemperature", "High Temperature A-B", examValues.temperatureUnit || "unit", "Negative value required", "temperature")}
-                        {examField("lowTemperature", "Low Temperature A-B", examValues.temperatureUnit || "unit", "Negative value required", "temperature")}
-                        {!temperatureOrderValid && <p className="rangeOrderWarning" role="alert">Low Temperature A-B must be lower than High Temperature A-B.</p>}
-                        <label className="dataField">
-                          <span>Gas Bypass Temperature Set Point</span>
-                          <div className="dataInput"><input aria-label="Gas bypass temperature set point" disabled={gasBypassTemperatureNA} inputMode="decimal" onChange={(event) => updateExamNumeric("gasBypassTemperature", event.target.value, "temperature")} placeholder={gasBypassTemperatureNA ? "Not applicable" : "Negative value required"} value={examValues.gasBypassTemperature} /><b>{examValues.temperatureUnit || "unit"}</b></div>
-                          {numericWarnings["exam-gasBypassTemperature"] && <small className="numericWarning">{numericWarnings["exam-gasBypassTemperature"]}</small>}
-                          <label className="naToggle"><input checked={gasBypassTemperatureNA} onChange={(event) => { setGasBypassTemperatureNA(event.target.checked); if (event.target.checked) { setExamValues((current) => ({ ...current, gasBypassTemperature: "" })); setNumericWarnings((current) => ({ ...current, "exam-gasBypassTemperature": "" })); } }} type="checkbox" />Not applicable</label>
-                        </label>
-                      </div>
-                    </section>
-
-                    <section className="numericGroup" aria-labelledby="level-values-title">
-                      <div className="numericGroupHeader"><span>L</span><div><strong id="level-values-title">Level values</strong><p>Numbers only. Negative values are not accepted.</p></div></div>
-                      <div className="numericFieldStack">
-                        {examField("highLevelAlarm", "High Level Alarm", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
-                        {examField("highLevelSetPoint", "High Level Set Point", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
-                        {examField("lowLevelSetPoint", "Low Level Set Point", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
-                        {examField("lowLevelAlarm", "Low Level Alarm", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
-                        {!levelAlarmOrderValid && <p className="rangeOrderWarning" role="alert">Low Level Alarm must be lower than High Level Alarm.</p>}
-                        {!levelSetPointOrderValid && <p className="rangeOrderWarning" role="alert">Low Level Set Point must be lower than High Level Set Point.</p>}
-                      </div>
-                    </section>
-
-                    <section className="numericGroup" aria-labelledby="time-values-title">
-                      <div className="numericGroupHeader"><span>TM</span><div><strong id="time-values-title">Time values</strong><p>Numbers only. Negative time values are not accepted.</p></div></div>
-                      <div className="numericFieldStack">
-                        <label className="dataField">
-                          <span>Gas Bypass Time Delay</span>
-                          <div className="dataInput"><input aria-label="Gas bypass time delay" disabled={gasBypassDelayNA} inputMode="decimal" onChange={(event) => updateExamNumeric("gasBypassDelay", event.target.value, "nonnegative")} placeholder={gasBypassDelayNA ? "Not applicable" : "Non-negative value required"} value={examValues.gasBypassDelay} /><b>min</b></div>
-                          {numericWarnings["exam-gasBypassDelay"] && <small className="numericWarning">{numericWarnings["exam-gasBypassDelay"]}</small>}
-                          <label className="naToggle"><input checked={gasBypassDelayNA} onChange={(event) => { setGasBypassDelayNA(event.target.checked); if (event.target.checked) { setExamValues((current) => ({ ...current, gasBypassDelay: "" })); setNumericWarnings((current) => ({ ...current, "exam-gasBypassDelay": "" })); } }} type="checkbox" />Not applicable</label>
-                        </label>
-                        {examField("maximumFillTime", "Maximum Fill Time", "min", "Non-negative value required", "nonnegative")}
-                        {examField("eventLogInterval", "Event Log Interval", "min", "Non-negative value required", "nonnegative")}
-                      </div>
-                    </section>
 
                     <section className="configurationGroup" aria-labelledby="configuration-values-title">
-                      <div className="numericGroupHeader"><span>U</span><div><strong id="configuration-values-title">Units and controller</strong><p>Select the displayed units and record the controller field from the PM.</p></div></div>
+                      <div className="numericGroupHeader"><span>U</span><div><strong id="configuration-values-title">Units</strong><p>Select the units shown on the controller.</p></div></div>
                       <div className="configurationGrid">
                         <label className="dataField">
                           <span>Temperature Unit</span>
@@ -488,6 +464,48 @@ return (
                         </label>
                       </div>
                     </section>
+                    <section className="numericGroup" aria-labelledby="temperature-values-title">
+                      <div className="numericGroupHeader"><span>T</span><div><strong id="temperature-values-title">Temperature values</strong><p>Numbers only. Every temperature value must be negative. Use the minus sign (−).</p></div></div>
+                      <div className="numericFieldStack">
+                        {examField("highTemperature", "High Temperature A-B", examValues.temperatureUnit || "unit", "Negative value required", "temperature")}
+                        {examField("lowTemperature", "Low Temperature A-B", examValues.temperatureUnit || "unit", "Negative value required", "temperature")}
+                        {!temperatureOrderValid && <p className="rangeOrderWarning" id="temperature-order-error" role="alert">Low Temperature A-B must be lower than High Temperature A-B.</p>}
+                        <div className="dataField">
+                          <span>Gas Bypass Temperature Set Point</span>
+                          <div className="dataInput"><input aria-label="Gas bypass temperature set point" aria-invalid={!!numericWarnings["exam-gasBypassTemperature"]} aria-describedby={numericWarnings["exam-gasBypassTemperature"] ? "exam-gasBypassTemperature-warning" : undefined} disabled={gasBypassTemperatureNA} inputMode="text" autoCorrect="off" autoCapitalize="none" spellCheck={false} onChange={(event) => updateExamNumeric("gasBypassTemperature", event.target.value, "temperature")} placeholder={gasBypassTemperatureNA ? "Not applicable" : "Negative value required"} value={examValues.gasBypassTemperature} /><b>{examValues.temperatureUnit || "unit"}</b></div>
+                          {numericWarnings["exam-gasBypassTemperature"] && <small className="numericWarning" id="exam-gasBypassTemperature-warning" role="status">{numericWarnings["exam-gasBypassTemperature"]}</small>}
+                          <label className="naToggle"><input checked={gasBypassTemperatureNA} onChange={(event) => { setGasBypassTemperatureNA(event.target.checked); if (event.target.checked) { setExamValues((current) => ({ ...current, gasBypassTemperature: "" })); setNumericWarnings((current) => ({ ...current, "exam-gasBypassTemperature": "" })); } }} type="checkbox" />Not applicable</label>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="numericGroup" aria-labelledby="level-values-title">
+                      <div className="numericGroupHeader"><span>L</span><div><strong id="level-values-title">Level values</strong><p>Numbers only. Negative values are not accepted.</p></div></div>
+                      <div className="numericFieldStack">
+                        {examField("highLevelAlarm", "High Level Alarm", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
+                        {examField("highLevelSetPoint", "High Level Set Point", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
+                        {examField("lowLevelSetPoint", "Low Level Set Point", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
+                        {examField("lowLevelAlarm", "Low Level Alarm", examValues.levelUnit || "unit", "Non-negative value required", "nonnegative")}
+                        {!levelAlarmOrderValid && <p className="rangeOrderWarning" id="level-alarm-error" role="alert">Low Level Alarm must be lower than High Level Alarm.</p>}
+                        {!levelSetPointOrderValid && <p className="rangeOrderWarning" id="level-setpoint-error" role="alert">Low Level Set Point must be lower than High Level Set Point.</p>}
+                      </div>
+                    </section>
+
+                    <section className="numericGroup" aria-labelledby="time-values-title">
+                      <div className="numericGroupHeader"><span>TM</span><div><strong id="time-values-title">Time values</strong><p>Numbers only. Negative time values are not accepted.</p></div></div>
+                      <div className="numericFieldStack">
+                        <div className="dataField">
+                          <span>Gas Bypass Time Delay</span>
+                          <div className="dataInput"><input aria-label="Gas bypass time delay" aria-invalid={!!numericWarnings["exam-gasBypassDelay"]} aria-describedby={numericWarnings["exam-gasBypassDelay"] ? "exam-gasBypassDelay-warning" : undefined} disabled={gasBypassDelayNA} inputMode="decimal" onChange={(event) => updateExamNumeric("gasBypassDelay", event.target.value, "nonnegative")} placeholder={gasBypassDelayNA ? "Not applicable" : "Non-negative value required"} value={examValues.gasBypassDelay} /><b>min</b></div>
+                          {numericWarnings["exam-gasBypassDelay"] && <small className="numericWarning" id="exam-gasBypassDelay-warning" role="status">{numericWarnings["exam-gasBypassDelay"]}</small>}
+                          <label className="naToggle"><input checked={gasBypassDelayNA} onChange={(event) => { setGasBypassDelayNA(event.target.checked); if (event.target.checked) { setExamValues((current) => ({ ...current, gasBypassDelay: "" })); setNumericWarnings((current) => ({ ...current, "exam-gasBypassDelay": "" })); } }} type="checkbox" />Not applicable</label>
+                        </div>
+                        {examField("maximumFillTime", "Maximum Fill Time", "min", "Non-negative value required", "nonnegative")}
+                        {examField("eventLogInterval", "Event Log Interval", "min", "Non-negative value required", "nonnegative")}
+                      </div>
+                    </section>
+
+
                   </div>
                   {renderSectionNotes(
                     "examination",
@@ -499,11 +517,11 @@ return (
 
               {activeStep === "review" && (
                 <div className="reviewContent">
-                  <div className="reviewBanner"><span>Ready</span><div><strong>PM questionnaire complete</strong><p>Review the recorded information before the signatures phase.</p></div></div>
+                  <div className="reviewBanner"><span>Ready</span><div><strong>{isCorrection ? "Ready to finalize" : "Ready for signatures"}</strong><p>{isCorrection ? "Review the corrected information before finalizing this version." : "Review the recorded information before the signatures phase."}</p></div></div>
                   <div className="summaryGrid">
                     <div><small>Equipment</small><strong>{freezerSerial}</strong><span>{selectedEquipment.label} · {family} · {model}</span></div>
                     <div><small>Completed sections</small><strong>4 of 4</strong><span>COVE inspection</span></div>
-                    <div><small>Measurements</small><strong>{passedMeasurements} passed</strong><span>No active hard stops</span></div>
+                    <div><small>Measurements</small><strong>{passedMeasurements} passed</strong><span>Within permitted ranges</span></div>
                     <div><small>Responses</small><strong>{yesCount} Yes · {noCount} No</strong><span>{naCount} N/A</span></div>
                   </div>
                   <div className="reviewSections">
@@ -512,7 +530,7 @@ return (
                     ))}
                   </div>
                   <label className="notesField"><span>Overall service notes · Optional</span><textarea onChange={(event) => setNotes((current) => ({ ...current, general: event.target.value }))} placeholder="Final service summary. Do not enter patient, sample or clinical data." value={notes.general} /></label>
-                  {completionStatus === "completed" ? (
+                  {isCorrection ? <div className="correctionReviewNotice"><strong>{completionStatus === "completed" ? "Correction finalized" : "Finalize correction"}</strong><p>Reason: {workspace.correctionReason}</p><p>Original signatures remain linked to the signed version. This correction records its author and date without requesting new signatures.</p></div> : completionStatus === "completed" ? (
                     <div className="signatureComplete">
                       <span>Completed</span>
                       <div>
@@ -573,7 +591,7 @@ return (
                         </label>
                       </section>
                       <div className="signaturePrivacy">
-                        The technician name and both signatures are retained for six years. Recipient names, email addresses, IP addresses, drawing pressure, speed and timing are not collected.
+                        The technician name and both signatures are retained for six years.<details className="privacyDetails"><summary>Signature privacy details</summary><p>Recipient names, email addresses, IP addresses, drawing pressure, speed and timing are not collected.</p></details>
                       </div>
                     </div>
                   )}
@@ -583,7 +601,7 @@ return (
               <footer className="formFooter">
                 <button className="backButton" disabled={currentIndex === 0} onClick={() => setActiveStep(steps[currentIndex - 1].key)} type="button">Back</button>
                 <div className="footerRight">
-                  {!activeComplete && <span className="blockingMessage">{blockingMessage()}</span>}
+                  {!activeComplete && <span className="blockingMessage" role="status">{blockingMessage()}</span>}
                   {saveStatus === "error" && <span className="blockingMessage" role="alert">{saveError}</span>}
                   {completionStatus === "error" && <span className="blockingMessage" role="alert">{completionError}</span>}
                   {activeStep !== "review"
@@ -592,18 +610,14 @@ return (
                         className="nextButton"
                         disabled={
                           !activeComplete ||
-                          !technicianSignature ||
-                          !technicianName.trim() ||
-                          !technicianResponsible ||
-                          !recipientSignature ||
-                          !recipientAccepted ||
+                          (!isCorrection && (!technicianSignature || !technicianName.trim() || !technicianResponsible || !recipientSignature || !recipientAccepted)) ||
                           completionStatus === "completing" ||
                           completionStatus === "completed"
                         }
                         onClick={() => void completePm()}
                         type="button"
                       >
-                        {completionStatus === "completing" ? "Completing PM..." : completionStatus === "completed" ? "PM completed" : "Complete PM"}
+                        {completionStatus === "completing" ? "Completing PM..." : completionStatus === "completed" ? "PM completed" : isCorrection ? "Finalize correction" : "Complete PM"}
                       </button>}
                 </div>
               </footer>
@@ -620,15 +634,15 @@ return (
                 <div><dt>Lab and location</dt><dd>{labName || "Pending"}{location ? ` · ${location}` : ""}</dd></div>
                 <div><dt>PM frequency</dt><dd>Annual</dd></div>
               </dl>
-              <div className="privacyCard"><span className="lockMark">P</span><div><strong>Privacy guard</strong><p>Do not enter patient, sample, clinical or credential information.</p></div></div>
+
               <div className="findingCard">
                 <div className="findingHeader"><span>Recorded results</span><b>{noCount}</b></div>
                 <strong>{noCount === 0 ? "No failed checks recorded" : `${noCount} failed check${noCount === 1 ? "" : "s"}`}</strong>
                 <p>Failed and N/A responses require a section observation before continuing.</p>
               </div>
-              <div className="helpCard"><strong>Sequential validation active</strong><p>Later sections unlock only after the current section is complete.</p></div>
+
             </aside>
           </div>
-            </>
+            </fieldset>
 );
 }

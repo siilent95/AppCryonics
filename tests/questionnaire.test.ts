@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 async function readUi() {
- const paths = ["types.ts", "catalogs.ts", "helpers.ts", "usePmWorkspace.ts", "PmWorkspace.tsx", "MaintenanceForm.tsx", ...(await readdir(new URL("../features/pm/components/", import.meta.url))).map(n => "components/" + n)];
+ const paths = ["types.ts", "catalogs.ts", "helpers.ts", "usePmWorkspace.ts", "useReports.ts", "PmWorkspace.tsx", "MaintenanceForm.tsx", ...(await readdir(new URL("../features/pm/components/", import.meta.url))).map(n => "components/" + n), ...(await readdir(new URL("../features/pm/analytics/", import.meta.url))).filter(n => /\.tsx?$/.test(n)).map(n => "analytics/" + n)];
  return (await Promise.all(paths.map(p => readFile(new URL("../features/pm/" + p, import.meta.url), "utf8")))).join("\n");
 }
 
@@ -65,14 +65,15 @@ test("activates Overview, Equipment and Reports with protected PM records", asyn
   assert.match(page, /function OverviewView/);
   assert.match(page, /function EquipmentView/);
   assert.match(page, /function ReportsView/);
-  assert.match(page, /Alerts &amp; service facts/);
-  assert.match(page, /kairosProductStage/);
-  assert.match(page, /Equipment registry/);
+  assert.match(page, /PM activity over time/);
+  assert.match(page, /Observations by section/);
+  assert.match(page, /Equipment library/);
   assert.match(page, /Export filtered CSV/);
-  assert.match(page, /Print or save full PM PDF/);
+  assert.match(page, /Download PDF/);
+  assert.doesNotMatch(page, /window\.print\(/);
   assert.match(page, /signature\?role=technician/);
   assert.match(page, /signature\?role=recipient/);
-  assert.match(page, /fetch\("\/api\/pm-records"/);
+  assert.match(page, /fetch\(`\/api\/pm-records\?\$\{params\}`/);
   assert.match(page, /fetch\(`\/api\/pm-records\/\$\{record\.id\}`/);
   assert.match(collectionRoute, /technicianSignatureCapturedAt/);
   assert.match(collectionRoute, /recipientSignatureCapturedAt/);
@@ -82,7 +83,7 @@ test("activates Overview, Equipment and Reports with protected PM records", asyn
   assert.doesNotMatch(page, /localStorage|sessionStorage/);
 });
 
-test("prints a complete brand-specific PM rather than a summary-only PDF", async () => {
+test("keeps the complete brand-specific report and direct PDF action", async () => {
   const [page, css] = await Promise.all([
     readUi(),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -120,7 +121,7 @@ test("includes CryoVerse models, report identity, and ordered examination limits
   assert.match(page, /temperatureOrderValid &&/);
   assert.match(page, /levelAlarmOrderValid &&/);
   assert.match(page, /levelSetPointOrderValid;/);
-  assert.match(page, /Filter equipment by serial number/);
+  assert.match(page, /Search models/);
   assert.match(page, /Filter reports by technician/);
   assert.match(page, /PM date from/);
   assert.match(page, /PM execution date/);

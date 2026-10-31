@@ -1,13 +1,16 @@
 "use client";
+import { PdfDownloadButton } from "./PdfDownloadButton";
 import type { InspectionStep, ReportDetail, ChecklistItem, NotesState, ExamValues } from "@/features/pm/types";
 import { constructionItems, operationItems, verificationItems, equipment } from "@/features/pm/catalogs";
-import { formatDate, pmDate, freezerImage, brandLabel } from "@/features/pm/helpers";
+import { formatDate, pmDate, freezerImage, recordBrandLabel, brandLabel } from "@/features/pm/helpers";
 export function ReportPreview({
   detail,
+  catalogModels = [],
   error,
   loading,
 }: {
   detail: ReportDetail | null;
+  catalogModels?: import("@/features/equipment/types").CatalogModel[];
   error: string;
   loading: boolean;
 }) {
@@ -17,9 +20,11 @@ export function ReportPreview({
 
   const { record } = detail;
   const notes = record.payload.notes ?? {};
-  const technicianSignatureAvailable = Boolean(record.technicianSignatureCapturedAt && !record.technicianSignatureDeletedAt);
-  const recipientSignatureAvailable = Boolean(record.recipientSignatureCapturedAt && !record.recipientSignatureDeletedAt);
-  const image = freezerImage(record.brand, record.modelFamily, record.model);
+  const signing = record.signatureReference || record;
+  const technicianSignatureAvailable = Boolean(signing.technicianSignatureCapturedAt && !signing.technicianSignatureDeletedAt);
+  const recipientSignatureAvailable = Boolean(signing.recipientSignatureCapturedAt && !signing.recipientSignatureDeletedAt);
+  const entry = catalogModels.find(m => m.brandId === (record.equipmentBrandId || record.brand) && m.family === record.modelFamily && m.model === record.model);
+  const image = entry?.imageUrl ? { src: entry.imageUrl, exact: entry.imageScope === "model" } : record.equipmentBrandId && record.equipmentBrandId !== record.brand ? null : freezerImage(record.brand, record.modelFamily, record.model);
   const savedResponses = record.payload.responses ?? {};
   const measurements = record.payload.measurements ?? {};
   const exam = record.payload.examination ?? {};
@@ -51,7 +56,7 @@ export function ReportPreview({
   }
 
   function reportSectionHeading(number: string, title: string) {
-    return <header className="pmReportSectionHeading"><img alt="Cryogenics Solution Inc." src="/brand/logo-primary.png" /><div><span>Preventive maintenance program</span><h2>{number} / {title}</h2><small>{record.recordNumber} · {brandLabel(record.brand)} · {record.freezerSerial || "Serial not recorded"}</small></div></header>;
+    return <header className="pmReportSectionHeading"><img alt="Cryogenics Solution Inc." src="/brand/logo-primary.png" /><div><span>Preventive maintenance program</span><h2>{number} / {title}</h2><small>{record.recordNumber} · {recordBrandLabel(record)} · {record.freezerSerial || "Serial not recorded"}</small></div></header>;
   }
 
   function reportNote(section: keyof NotesState) {
@@ -62,21 +67,24 @@ export function ReportPreview({
     <article className="reportPreview">
       <div className="reportToolbar">
         <div><span>Preventive maintenance report</span><h2>{record.recordNumber}</h2></div>
-        <button disabled={record.status !== "completed"} onClick={() => window.print()} type="button">Print or save full PM PDF</button>
+        <PdfDownloadButton key={record.id} id={record.id} completed={record.status === "completed"} requiresSignatures={!record.correctsRecordId} />
       </div>
       <section className="reportCover" aria-label="PM report summary">
         <img className="reportLogo" alt="Cryogenics Solution Inc." src="/brand/logo-primary.png" />
         <div className="reportCoverHeading"><span>Preventive maintenance</span><strong>{record.recordNumber}</strong><small>PM date {formatDate(pmDate(record))}</small></div>
-        <figure className="reportFreezerImage"><img alt={`${brandLabel(record.brand)} ${record.model} freezer reference`} src={image.src} /><figcaption>{image.exact ? `Freezer model ${record.model}` : `Reference image for ${record.modelFamily}; verify the equipment label for ${record.model}`}</figcaption></figure>
+        {image && <figure className="reportFreezerImage"><img alt={`${recordBrandLabel(record)} ${record.model} freezer reference`} src={image.src} /><figcaption>{image.exact ? `Freezer model ${record.model}` : `Reference image for ${record.modelFamily}; verify the equipment label for ${record.model}`}</figcaption></figure>}
       <dl className="reportCoverFacts">
-          <div><dt>Technician</dt><dd>{record.technicianName || "Not recorded"}</dd></div>
-          <div><dt>Freezer model</dt><dd>{brandLabel(record.brand)} {record.model}</dd></div>
+          <div><dt>Document version</dt><dd>{record.documentVersion || 1}</dd></div>
+          {record.correctionReason && <div><dt>Reason for correction</dt><dd>{record.correctionReason}</dd></div>}
+          <div><dt>Technician</dt><dd>{signing.technicianName || "Not recorded"}</dd></div>
+          <div><dt>Freezer model</dt><dd>{recordBrandLabel(record)} {record.model}</dd></div>
           <div><dt>Serial number</dt><dd>{record.freezerSerial || "Not recorded"}</dd></div>
           <div><dt>Client</dt><dd>{record.clientOrganization || (record.labName ? `Lab: ${record.labName}` : "Not recorded")}</dd></div>
           <div><dt>Lab name</dt><dd>{record.labName || "Not recorded"}</dd></div>
           <div><dt>Location</dt><dd>{record.location || "Not recorded"}</dd></div>
           <div><dt>Controller serial</dt><dd>{record.controllerSerial || "Not recorded"}</dd></div>
           <div><dt>Controller type</dt><dd>{record.controllerType || "Not recorded"}</dd></div>
+          {record.equipmentBrandId && record.equipmentBrandId !== record.brand && <div><dt>PM template</dt><dd>{brandLabel(record.brand)}</dd></div>}
           {record.brand === "mve" && <div><dt>Firmware version</dt><dd>{record.firmwareVersion || "Not recorded"}</dd></div>}
         </dl>
       </section>
@@ -140,23 +148,24 @@ export function ReportPreview({
       <section className="pmReportPage pmReportClosing">
         {reportSectionHeading("05", "Service closure")}
         {reportNote("general")}
-        <div className="pmReportAttestation"><strong>Maintenance record</strong><p>The technician signature documents responsibility for the work recorded in this PM. The recipient signature documents receipt of the PM.</p><p>PM date: {formatDate(pmDate(record))} · Record: {record.recordNumber} · Revision: {record.revision}</p></div>
+        <div className="pmReportAttestation"><strong>Maintenance record</strong>{record.correctionPublication ? <p>Correction finalized by {record.correctionPublication.name} on {formatDate(record.correctionPublication.createdAt, true)}. Original signatures refer to {record.signatureReference?.recordNumber || "the previously signed version"}; no new signatures were collected.</p> : <p>The technician signature documents responsibility for the work recorded in this PM. The recipient signature documents receipt of the PM.</p>}<p>PM date: {formatDate(pmDate(record))} · Record: {record.recordNumber} · Version: {record.documentVersion || 1}</p></div>
+        {record.signatureReference && <p className="signatureReferenceNote">Signatures from version {record.signatureReference.documentVersion} · {record.signatureReference.recordNumber}</p>}
         {record.status !== "completed" ? (
-          <p>This PM is still a draft. Signatures have not been recorded.</p>
+          <p>{record.correctsRecordId ? "Correction draft. Finalize this version to view the original signature references." : "This PM is still a draft. Signatures have not been recorded."}</p>
         ) : (
           <div className="reportSignatureGrid">
             <figure>
-              <figcaption><strong>Responsible technician: {record.technicianName || "Not recorded"}</strong><span>Signed {formatDate(record.technicianSignatureCapturedAt, true)}</span></figcaption>
+              <figcaption><strong>Responsible technician: {signing.technicianName || "Not recorded"}</strong><span>Signed {formatDate(signing.technicianSignatureCapturedAt, true)}</span></figcaption>
               {technicianSignatureAvailable ? <img alt="Responsible PM technician signature" src={`/api/pm-records/${record.id}/signature?role=technician`} /> : <div>Signature no longer available</div>}
             </figure>
             <figure>
-              <figcaption><strong>PM recipient</strong><span>Signed {formatDate(record.recipientSignatureCapturedAt, true)}</span></figcaption>
+              <figcaption><strong>PM recipient</strong><span>Signed {formatDate(signing.recipientSignatureCapturedAt, true)}</span></figcaption>
               {recipientSignatureAvailable ? <img alt="PM recipient signature" src={`/api/pm-records/${record.id}/signature?role=recipient`} /> : <div>Signature no longer available</div>}
             </figure>
           </div>
         )}
         {record.status === "completed" && (
-          <p className="retentionLine">Signature retention date: {formatDate(record.technicianSignatureRetentionUntil || record.recipientSignatureRetentionUntil)}</p>
+          <p className="retentionLine">Signature retention date: {formatDate(signing.technicianSignatureRetentionUntil || signing.recipientSignatureRetentionUntil)}</p>
         )}
       </section>
       <section className="reportSection reportAuditSection">

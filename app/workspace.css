@@ -1,0 +1,358 @@
+/* The working surface fills the viewport. Report print rules stay in globals.css. */
+@media screen {
+  html, body { background: #0b2235; }
+  .appShell { --ink:#f4f8fb; --text:#f4f8fb; --muted:#afc0cc; --line:#294358; --soft:#0c2336; --surface:#10293e; --cyan-dark:#80dbe9; display:grid; grid-template-columns:216px minmax(0,1fr); min-height:100dvh; width:100%; max-width:none; margin:0; border-radius:0; background:#0b2235; color:var(--ink); box-shadow:none; font-size:14px; }
+  .appShell button, .appShell input, .appShell textarea, .appShell select { font-family:inherit; }
+  .appShell :focus-visible, #analytics-detail :focus-visible { outline:2px solid #80e1ed; outline-offset:3px; }
+  .skipLink { position:fixed; left:16px; top:-80px; z-index:100; background:#9ae9f2; color:#071b2d; padding:12px 20px; border-radius:6px; }
+  .skipLink:focus { top:12px; }
+  .sidebar { position:sticky; top:0; inset-inline:auto; align-self:start; height:100dvh; width:auto; z-index:25; padding:28px 16px 24px; border-right:1px solid var(--line); background:#071b2d; transform:none; }
+  .brand { width:auto; flex:none; padding:0 12px 36px; gap:24px; }
+  .brand img { width:158px; height:46px; object-fit:contain; object-position:left center; }
+  .brand strong { font-size:25px; font-weight:500; letter-spacing:-.7px; }
+  .brand small { margin-top:5px; font-size:12px; color:var(--muted); }
+  .primaryNav { gap:6px; flex-direction:column; }
+  .primaryNav button { height:auto; min-height:46px; padding:12px; gap:12px; border-radius:7px; font-size:14px; font-weight:400; color:var(--muted); }
+  .primaryNav button.active { background:#14384c; color:#8be3f0; box-shadow:inset 2px 0 #00a9ce; }
+  .navIcon { display:block; border:0; border-radius:0; width:20px; height:20px; flex:none; }
+  .sidebarBottom { padding:24px 12px 0; border-top:1px solid var(--line); gap:6px; font-size:12px; color:var(--muted); }
+  .sidebarBottom strong { color:#e2edf4; font-weight:400; font-size:12px; }
+  .sidebarBottom small { line-height:1.7; }
+  .workspace { margin:0; width:100%; min-width:0; min-height:100dvh; }
+  .topbar { position:relative; height:auto; min-height:72px; padding:14px 32px; background:transparent; border-bottom:1px solid var(--line); backdrop-filter:none; gap:20px; z-index:20; }
+  .breadcrumb { display:flex; min-width:0; font-size:13px; flex-wrap:wrap; }
+  .breadcrumb span { color:var(--muted); }
+  .breadcrumb strong { font-weight:400; }
+  .topActions { gap:16px; flex:none; }
+  .accountIdentity { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .accountIdentity>span:last-child { max-width:180px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .avatar { width:30px; height:30px; background:#174052; color:#c5f0f4; font-size:11px; font-weight:500; }
+  .signOut { min-height:44px; border:0; background:transparent; color:var(--muted); font-size:12px; padding:8px 0 8px 8px; }
+  .signOut:hover { color:white; }
+  .saveState { color:var(--muted); font-size:12px; }
+  .saveState.error { color:#ffb4a9; }
+  .ghostButton, .backButton { min-height:44px; height:auto; background:transparent; border:1px solid #426075; color:var(--ink); padding:10px 14px; font-size:13px; font-weight:400; box-shadow:none; }
+  .ghostButton:hover:not(:disabled), .backButton:hover:not(:disabled) { background:#17384e; border-color:#6e99af; }
+  .content { max-width:none; width:100%; min-width:0; margin:0; padding:28px 32px 40px; }
+  .content:focus { outline:none; }
+  h1 { font-size:32px; font-weight:500; letter-spacing:-.9px; line-height:1.15; }
+  .eyebrow { color:#80dbe9; font-size:11px; font-weight:500; letter-spacing:1px; }
+  .primaryAction, .nextButton { min-height:44px; height:auto; border:1px solid #00a9ce; background:#00a9ce; color:#031e2f; font-size:13px; padding:11px 16px; font-weight:500; box-shadow:none; }
+  .primaryAction:hover, .nextButton:hover { background:#69d5e6; border-color:#69d5e6; }
+  .primaryAction:disabled, .nextButton:disabled { background:#345467; border-color:#345467; color:#b0c3d0; }
+  .viewHero { padding:0 0 8px; border:0; border-radius:0; background:transparent; box-shadow:none; }
+  .viewHero p { font-size:14px; }
+  .viewCount { background:#14364c; }
+  .viewCount span { font-size:11px; }
+  .viewMessage, .dataPanel { background:var(--surface); border-color:var(--line); box-shadow:none; }
+  .viewMessage.error { background:#382d32; }
+  .viewMessage strong, .emptyState strong { font-size:15px; }
+  .viewMessage span, .emptyState span { font-size:13px; }
+  .filterBar { background:transparent; gap:16px; }
+  .filterBar label>span { font-size:12px; text-transform:none; letter-spacing:0; }
+  .filterBar input, .filterBar select { min-height:44px; font-size:14px; background:#0c2336; color:var(--ink); border-color:#426075; }
+  .recordsTable th { background:#0e273b; color:var(--muted); font-size:11px; letter-spacing:.3px; }
+  .recordsTable td { color:var(--ink); font-size:13px; }
+  .recordsTable td strong { color:inherit; font-size:13px; font-weight:500; }
+  .recordsTable td small { color:var(--muted); font-size:12px; }
+  .recordsTable tbody tr:hover, .selectedEquipmentRow { background:#17384e; }
+  .equipmentSelect, .tableAction { color:#80dbe9; font-size:13px; }
+  .recordStatus { font-size:11px; padding:5px 8px; }
+  .recordStatus.ready_for_signature { color:#075567; }
+  .tableIdentity { min-width:155px; }
+  .brandToken { background:#1f4558; color:#98e7ef; }
+  .kairosEquipmentLayout { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:22px; align-items:start; }
+  .kairosEquipmentLayout .dataPanel { min-width:0; }
+  .kairosEquipmentDetail { min-width:0; border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .kairosEquipmentImage { height:230px; background-color:#e8f2f5; background-size:auto 85%; background-repeat:no-repeat; background-position:center; }
+  .kairosEquipmentInfo { padding:20px; }
+  .kairosEquipmentInfo h2 { font-size:23px; font-weight:500; margin:8px 0; }
+  .kairosEquipmentInfo p { color:var(--muted); font-size:13px; overflow-wrap:anywhere; }
+  .kairosEquipmentInfo dl { margin:20px 0; }
+  .kairosEquipmentInfo dl>div, .analytics-equipment dl>div { display:flex; justify-content:space-between; gap:18px; padding:10px 0; border-top:1px solid var(--line); font-size:12px; }
+  .kairosEquipmentInfo dt, .analytics-equipment dt { color:var(--muted); }
+  .kairosEquipmentInfo dd, .analytics-equipment dd { text-align:right; margin:0; overflow-wrap:anywhere; }
+  .kairosEquipmentInfo button { width:100%; min-height:44px; background:transparent; color:#80dbe9; border:1px solid #426075; border-radius:7px; }
+  .kairosEquipmentMissing { padding:24px; color:var(--muted); }
+  .reportsGrid { grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); align-items:start; }
+  .reportsListPanel, .reportPreview { min-width:0; }
+  .reportRow { background:transparent; color:var(--ink); border-color:var(--line); }
+  .reportRow strong { color:var(--ink); font-size:14px; }
+  .reportRow small, .reportRow span { color:var(--muted); font-size:12px; }
+  .reportRow:hover, .reportRow.selected { background:#17384e; border-color:#517b92; }
+  .reportPreview { --ink:#172033; --muted:#6d7888; --line:#dfe5eb; --soft:#f4f7f9; --cyan-dark:#08758f; color:var(--ink); background:white; }
+  .reportToolbar { flex-wrap:wrap; }
+  .reportToolbar .ghostButton { color:#172033; border-color:#acbcc9; }
+  .reportToolbar .ghostButton:hover { background:#e4edf2; }
+  /* Retain the questionnaire while bringing its controls to the A working surface. */
+  .orderHero { align-items:flex-start; }
+  .orderHero p { font-size:14px; }
+  .assetIdentity, .equipmentIdentification, .formPanel, .contextPanel { background:var(--surface); border-color:var(--line); box-shadow:none; }
+  .assetIdentity { min-width:220px; }
+  .orderHero>div:first-child { min-width:0; }
+  .assetIdentity { max-width:460px; min-width:0; flex:0 1 460px; }
+  .assetIdentity>div:last-child { min-width:0; overflow-wrap:anywhere; }
+  .assetVisual { display:block; width:56px; height:56px; flex:0 0 56px; padding:4px; overflow:hidden; background:#eaf2f5; }
+  .assetVisual img { display:block; width:100%; height:100%; max-width:100%; max-height:100%; object-fit:contain; object-position:center; }
+  .assetIdentity small, .assetIdentity span { font-size:12px; }
+  .assetIdentity strong { font-size:14px; }
+  .brandSelector span { font-size:11px; }
+  .brandSelector button { background:transparent; min-height:38px; font-size:12px; font-weight:400; }
+  .brandSelector button.active { background:#164252; color:#a0edf5; border-color:#61c6d7; box-shadow:none; }
+  .identificationHeading, .numericGroupHeader { background:#143247; }
+  .identificationHeading p, .sectionHeading p { font-size:10px; color:#80dbe9; }
+  .identificationHeading h2, .sectionHeading h2 { font-size:19px; font-weight:500; }
+  .identificationHeading>small { font-size:12px; }
+  .identificationField>span { font-size:12px; text-transform:none; font-weight:400; letter-spacing:0; }
+  .identificationField input, .identificationField select, .dataField select { min-height:44px; background:#0c2336; color:var(--ink); border-color:#426075; font-size:14px; font-weight:400; }
+  .identificationNotice { font-size:12px; font-weight:400; }
+  .stepper { background:var(--surface); }
+  .stepper button { background:var(--surface); color:var(--ink); min-height:68px; padding:10px; gap:8px; }
+  .stepper small { color:var(--muted); font-size:10px; }
+  .stepper strong { font-weight:500; font-size:12px; }
+  .stepper button.current { background:#173f52; }
+  .stepper button>span { font-size:11px; }
+  .stepper button:disabled { background:#10293e; }
+  .sectionHeading { padding:20px; }
+  .requiredLabel { font-size:11px; }
+  .questionCard, .measurementCard { background:transparent; padding:18px; }
+  .questionCard h3, .measurementCard h3 { font-size:14px; font-weight:400; }
+  .questionCopy p { font-size:12px; line-height:1.5; }
+  .questionNumber { font-size:10px; color:var(--muted); }
+  .choice { background:transparent; color:var(--muted); width:48px; height:44px; font-size:12px; font-weight:500; }
+  .choice.active.yes { background:#176a55; }
+  .choice.active.no { background:#9f322e; }
+  .instructionBand, .groupedConfirmation, .privacyCard { background:#14384b; border-color:#375b6e; }
+  .instructionBand strong, .batteryMeasurement>div:first-child strong, .numericGroupHeader strong { font-size:14px; font-weight:500; }
+  .instructionBand p, .batteryMeasurement>div:first-child p, .numericGroupHeader p { font-size:12px; }
+  .disabledCard { background:#0c2336; }
+  .rangePill, .nominalPill { background:#1d4053; color:#b5e8ef; font-size:11px; white-space:normal; }
+  .measureInput>span, .notesField>span { font-size:12px; }
+  .measureInput>div, .dataInput { min-height:44px; height:44px; border-color:#426075; background:#0c2336; }
+  .measureInput input, .dataInput input { background:transparent; font-size:15px; font-variant-numeric:tabular-nums; }
+  .measureInput b, .dataInput b { font-size:12px; }
+  .numericGroup, .configurationGroup { background:transparent; }
+  .dataField>span { color:var(--ink); font-size:12px; font-weight:400; }
+  .dataInput input:disabled { background:#142d40; }
+  .naToggle { font-size:12px; min-height:32px; }
+  .sectionNotes>span, .notesField>span { font-size:12px; font-weight:400; text-transform:none; letter-spacing:0; }
+  .sectionNotes textarea, .notesField textarea { color:var(--ink); background:#0c2336; border-color:#426075; font-size:14px; min-height:110px; }
+  .sectionNotes.requiredNotes textarea { border-color:#e2b16b; background:#182d3b; }
+  .inlineAlert, .inputWarning, .batteryStatusWarning, .batteryStatusWarning strong { font-size:12px; }
+  .numericWarning, .blockingMessage { color:#ffb4a9; font-size:12px; }
+  .formFooter { background:#0e273b; gap:16px; }
+  .footerRight { gap:14px; }
+  .contextHeader span, .contextHeader strong, .contextPanel dl div { font-size:12px; }
+  .contextPanel dl div { border-color:var(--line); }
+  .contextPanel dd { color:var(--ink); font-weight:400; overflow-wrap:anywhere; }
+  .privacyCard strong, .findingCard strong, .helpCard strong { font-size:13px; }
+  .privacyCard p, .findingCard p, .helpCard p { font-size:12px; }
+  .findingCard { color:#4d3719; }
+  .findingCard p { color:#715433; }
+  .findingCard button, .findingHeader { font-size:12px; }
+  .reviewBanner, .signatureComplete { color:#174a39; }
+  .reviewBanner strong, .signatureComplete strong { font-size:14px; }
+  .reviewBanner p, .signatureComplete p { font-size:12px; }
+  .summaryGrid small, .summaryGrid span { font-size:11px; }
+  .summaryGrid strong { font-size:15px; }
+  .reviewSections span { font-size:11px; }
+  .reviewSections strong { color:var(--ink); font-size:13px; font-weight:400; }
+  .recipientSignatureSection { background:#112d41; border-color:#426075; }
+  .signatureHeading span, .signatureHeading small, .signaturePrivacy { font-size:12px; }
+  .signatureHeading h2 { font-size:17px; font-weight:500; }
+  .signatureLine { color:#314b60; --muted:#526879; --cyan-dark:#07596d; }
+  .signatureLine span, .signatureLine button { font-size:12px; min-height:40px; }
+  .signatureConsent { font-size:13px; font-weight:400; }
+  .signatureConsent input { width:18px; height:18px; flex:none; }
+}
+@media screen and (max-width:1250px) {
+  .topbar { padding-inline:24px; }
+  .content { padding:24px; }
+  .mainGrid { grid-template-columns:minmax(0,1fr); }
+  .contextPanel { display:none; }
+  .kairosEquipmentLayout { grid-template-columns:minmax(0,1fr); }
+  .kairosEquipmentDetail { display:grid; grid-template-columns:220px minmax(0,1fr); }
+  .kairosEquipmentImage { height:100%; min-height:260px; }
+  .reportsGrid { grid-template-columns:minmax(0,1fr); }
+}
+@media screen and (max-width:1180px) {
+  .appShell { display:flex; flex-direction:column; }
+  .sidebar { height:auto; position:relative; width:100%; padding:16px 24px; flex-direction:row; align-items:center; justify-content:space-between; gap:24px; border-right:0; border-bottom:1px solid var(--line); }
+  .brand { padding:0; }
+  .brand>div, .sidebarBottom { display:none; }
+  .brand img { width:140px; height:40px; }
+  .primaryNav { flex-direction:row; gap:4px; }
+  .primaryNav button { width:auto; font-size:13px; padding:10px 12px; gap:8px; }
+  .primaryNav button.active { box-shadow:inset 0 -2px #00a9ce; }
+  .primaryNav .navIcon { display:none; }
+  .topbar { min-height:62px; }
+  .accountIdentity>span:last-child { max-width:110px; }
+  .topActions .saveState { display:none; }
+  .workspace { min-height:0; }
+}
+@media screen and (max-width:650px) {
+  .sidebar { flex-direction:column; align-items:stretch; gap:14px; padding:16px; }
+  .brand img { width:158px; height:44px; }
+  .primaryNav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .primaryNav button { display:block; padding:10px 4px; font-size:12px; text-align:center; min-height:44px; }
+  .topbar { padding:10px 16px; gap:10px; }
+  .breadcrumb { font-size:12px; }
+  .breadcrumb strong, .breadcrumb b { display:none; }
+  .topActions { gap:10px; }
+  .topActions .ghostButton { padding:8px 10px; font-size:12px; }
+  .accountIdentity>span:last-child { display:none; }
+  .signOut { font-size:12px; padding-left:0; }
+  .content { padding:24px 16px; }
+  h1 { font-size:28px; }
+  .viewHero { flex-wrap:wrap; gap:16px; }
+  .viewHero p { font-size:13px; }
+  .viewCount { min-width:100px; }
+  .orderHero { display:block; }
+  .orderHero .assetIdentity { display:none; }
+  .titleRow { flex-wrap:wrap; gap:10px; }
+  .identificationHeading { align-items:flex-start; padding:16px; }
+  .identificationHeading>small { max-width:14ch; font-size:11px; }
+  .identificationGrid { grid-template-columns:minmax(0,1fr); }
+  .identificationField:nth-child(n) { border-right:0; border-bottom:1px solid var(--line); padding:16px; }
+  .identificationField:last-child { border-bottom:0; }
+  .identificationField input, .identificationField select, .dataField select, .filterBar input, .filterBar select, .measureInput input, .dataInput input, .sectionNotes textarea, .notesField textarea { font-size:16px; }
+  .nestedSelects { grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); }
+  .stepper { display:flex; flex-wrap:wrap; border:0; gap:6px; background:transparent; }
+  .stepper button { min-height:44px; border:1px solid var(--line); border-radius:7px; }
+  .stepper button>div { display:none; }
+  .stepper button.current>div { display:block; }
+  .stepper small { display:none; }
+  .stepper button>span { width:22px; height:22px; flex-basis:22px; }
+  .stepper button>div strong { margin:0; }
+  .sectionHeading { padding:16px; }
+  .requiredLabel { display:none; }
+  .measurementStack, .questionList, .reviewContent, .examContent { padding:16px; }
+  .questionCard { grid-template-columns:minmax(0,1fr); gap:16px; padding:16px; }
+  .choiceGroup { width:100%; }
+  .choice { flex:1; width:auto; }
+  .sectionNotes { margin:0 16px 16px; }
+  .measurementTop { flex-direction:column; gap:12px; }
+  .batteryMeasurement { margin:0 16px 16px; grid-template-columns:minmax(0,1fr); }
+  .configurationGrid, .reviewSections { grid-template-columns:minmax(0,1fr); }
+  .formFooter { padding:16px; flex-wrap:wrap; }
+  .footerRight { flex:1; justify-content:flex-end; }
+  .blockingMessage { max-width:19ch; font-size:11px; }
+  .summaryGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .signatureHeading { flex-direction:column; gap:8px; }
+  .signatureHeading small { text-align:left; }
+  .kairosEquipmentDetail { grid-template-columns:100px minmax(0,1fr); }
+  .kairosEquipmentImage { min-height:200px; background-size:90% auto; }
+  .kairosEquipmentInfo { padding:16px; }
+  .filterBar { flex-direction:column; }
+  .filterBar label { width:100%; min-width:0; }
+}
+@media (prefers-reduced-motion:reduce) { .appShell *, .appShell *::before, .appShell *::after { transition:none!important; scroll-behavior:auto!important; } }
+@media screen {
+  .reportList { min-height:160px; max-height:580px; }
+  .reportList .reportSelect { background:transparent; color:var(--ink); border-bottom-color:var(--line); padding:16px 12px; min-height:90px; }
+  .reportList .reportSelect:hover, .reportList .reportSelect.selected { background:transparent; border-color:transparent; }
+  .reportList strong { font-size:14px; font-weight:500; }
+  .reportListRow { border:1px solid transparent; border-bottom-color:var(--line); border-radius:9px; }
+  .reportListRow:focus-within { background:rgba(35,83,108,.2); border-color:#426c83; }
+  .reportListRow.selected { background:rgba(35,83,108,.3); border-color:#517b92; }
+  .reportListRow .reportSelect { border:0; border-radius:8px; }
+  .reportRowAction { margin:0 12px 12px; min-height:44px; font-size:12px; }
+  .reportEditActions { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 16px; }
+  .reportEditActions p,.reportVersions p { color:var(--muted); font-size:13px; line-height:1.6; }
+  .reportVersions { margin:0 0 16px; padding:16px; border:1px solid #426075; border-radius:10px; background:rgba(11,35,53,.3); }
+  .reportVersions h2 { font-size:15px; font-weight:500; margin:0 0 12px; }
+  .reportVersions>div { display:flex; flex-wrap:wrap; gap:8px; }
+  .reportVersions .ghostButton { font-size:12px; min-height:44px; }
+  .reportVersions .versionHistoryHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .versionHistoryHeading h2 { margin:0; }
+  .versionHistoryHeading>span { font-size:12px; color:var(--muted); }
+  .reportVersions .versionHistoryControls { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:end; gap:10px; }
+  .versionHistoryControls label { min-width:0; display:grid; gap:6px; font-size:12px; color:var(--muted); }
+  .versionHistoryControls select { width:100%; max-width:100%; min-width:0; min-height:44px; border:1px solid #426075; border-radius:8px; padding:10px; color:var(--ink); background:#10293e; font:inherit; font-size:14px; }
+  .versionHistoryControls .ghostButton { padding:8px; }
+  .versionReason { margin-top:12px; font-size:13px; color:var(--muted); }
+  .versionReason summary { cursor:pointer; min-height:44px; padding-top:12px; }
+  .versionReason p { max-height:160px; overflow:auto; overflow-wrap:anywhere; white-space:pre-wrap; }
+  .reportHeroActions { display:flex; flex-wrap:wrap; gap:10px; }
+  .correctionReviewNotice { border:1px solid #426075; padding:20px; border-radius:10px; background:rgba(23,63,82,.3); color:var(--muted); line-height:1.65; }
+  .correctionReviewNotice strong { color:var(--ink); }
+  .correctionReviewNotice p { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; }
+  .signatureReferenceNote { padding:12px 16px; background:#eff7fa; border:1px solid #c5dce6; color:#294358; font-size:12px; }
+  .saveExitButton { white-space:nowrap; }
+  .pmFormFields { min-width:0; border:0; margin:0; padding:0; width:100%; }
+  .correctionDialog { max-width:640px; }
+  .correctionDialog>p { color:#bed1dd; line-height:1.65; font-size:14px; margin-bottom:20px; }
+  .correctionDialog form,.correctionDialog label { display:grid; gap:12px; }
+  .correctionDialog label { color:#bed1dd; font-size:13px; }
+  .correctionDialog textarea { border:1px solid #426075; border-radius:8px; padding:12px; background:#0c2336; color:#f4f8fb; font:inherit; font-size:16px; width:100%; resize:vertical; }
+  .pmProgressHelp { color:var(--muted); font-size:13px; line-height:1.6; margin:0 0 20px; padding:12px 16px; border-left:2px solid #80dbe9; background:rgba(23,63,82,.3); }
+  .reportList button div>span, .reportList button div>small { font-size:12px; color:var(--muted); }
+  .reportToolbar button { min-height:44px; font-size:12px; padding:8px 12px; font-weight:500; }
+  .reportToolbar span { font-size:10px; }
+  .reportToolbar h2 { font-size:17px; }
+  .brandToken.mve { background:#216078; color:#dcfaff; }
+  .filterBar input[type=date] { color-scheme:dark; }
+}
+@media screen {
+  .topbar { position:sticky; top:0; background:#0b2235; }
+  .appShell input[type=date] { color-scheme:dark; }
+  .inProgress { color:#075567; }
+}
+@media screen {
+  .loginPanel { width:calc(100% - 32px); max-width:440px; margin:10vh auto 32px; padding:32px; border:1px solid #294358; border-radius:12px; background:#10293e; color:#f4f8fb; }
+  .loginPanel p { color:#afc0cc; font-size:14px; line-height:1.5; }
+  .loginPanel label { font-size:14px; }
+  .loginPanel input { min-height:46px; margin-top:8px; font-size:16px; background:#0c2336; color:#f4f8fb; border-color:#426075; }
+  .loginPanel input:focus-visible { outline:2px solid #80dbe9; outline-offset:3px; }
+  .loginPanel [role=alert] { color:#ffb4a9; }
+  .loginPanel .primaryButton { width:100%; min-height:46px; margin-top:8px; border:0; border-radius:7px; background:#00a9ce; color:#031e2f; font-size:15px; font-weight:500; }
+}
+@media screen { .pdfDownload { display:flex; flex-direction:column; gap:6px; align-items:flex-end; max-width:260px; } .pdfDownload small { color:#526879; font-size:11px; line-height:1.4; text-align:right; } .pdfDownload [role=alert] { color:#a42a25; } }
+
+@media screen {
+  .reportList { max-height:clamp(760px,calc(100dvh - 160px),1200px); }
+  .reportManagementBar { display:flex; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; }
+  .reportManagementBar>span { color:var(--muted); font-size:13px; }
+  .reportViewTabs { display:flex; gap:8px; }
+  .reportViewTabs button[aria-pressed=true] { color:#dcfaff; border-color:#67c8db; background:rgba(36,106,130,.35); }
+  .reportResultsStatus { padding:10px 18px; color:var(--muted); font-size:13px; border-bottom:1px solid var(--line); }
+  .reportList[aria-busy=true] { opacity:.65; }
+  .reportPagination { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px; border-top:1px solid var(--line); }
+  .reportPagination>span { text-align:center; color:var(--ink); font-size:13px; }
+  .reportPagination small { display:block; color:var(--muted); font-size:12px; margin-top:4px; }
+  .reportPagination button { min-height:44px; }
+  .reportNotice { padding:12px 16px; border:1px solid #4c998e; background:rgba(34,92,81,.25); color:#d7fff3; border-radius:9px; font-size:14px; }
+  .ghostButton.dangerText { color:#ffc4bb; border-color:#a66e6a; }
+  .dangerButton { min-height:44px; padding:10px 18px; border:1px solid #ffb1a7; border-radius:8px; background:#a6322d; color:white; font:inherit; font-weight:500; cursor:pointer; }
+  .dangerButton:hover { background:#bb3b34; }
+  .dangerButton:disabled { opacity:.6; cursor:wait; }
+  .deleteReportIdentity { display:grid; gap:6px; padding:16px; border:1px solid #426075; border-radius:9px; background:#0c2336; color:#f4f8fb; }
+  .deleteReportIdentity span { color:#bed1dd; font-size:14px; }
+  .deleteReportActions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12px; margin-top:24px; }
+  .deleteReportActions button { min-height:44px; }
+  .reportListPane>.accountError { padding:12px 16px; }
+}
+@media screen and (max-width:700px) {
+  .reportList { max-height:680px; }
+  .reportPagination { gap:8px; padding:12px; }
+  .reportPagination button { padding:10px 12px; }
+}
+@media screen {
+  .reportsView .reportSearchTools { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:10px; }
+  .reportsView .reportSearchTools label { min-width:0; width:100%; }
+  .reportsView .reportSearchTools button { min-height:44px; padding:10px 12px; }
+  .reportsView .reportSearchTools+.filterBar { border-top:1px solid var(--line); }
+  .reportsView .reportManagementBar { margin-bottom:0; }
+}
+@media screen and (max-width:700px) {
+  .reportsView .reportHeroActions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+  .reportsView .reportHeroActions button { width:100%; padding:10px; font-size:12px; }
+}
+@media screen {
+  .reportList .reportSelect .trashDeadline { color:#ffcda9; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }
+}
+
+@media screen and (hover:hover) and (pointer:fine) {
+  .reportListRow:hover { background:rgba(35,83,108,.2); border-color:#426c83; }
+  .reportListRow.selected:hover { background:rgba(35,83,108,.36); border-color:#6491a8; }
+}

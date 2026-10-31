@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CryoPM — propuestas de interfaz</title>
+  <link rel="stylesheet" href="review.css">
+</head>
+<body>
+  <header class="review-head"><div><span class="review-brand">CryoPM</span><span class="divider">/</span><span>Estudio de interfaz</span></div><a href="/" target="_blank" rel="noopener">App actual ↗</a></header>
+  <main>
+    <div class="intro"><h1>La misma identidad.<br>Un espacio de trabajo mejor.</h1><p>Tres direcciones a ventana completa para mantener, revisar y documentar equipos criogénicos.</p></div>
+    <div class="directions" aria-label="Propuesta visual">
+      <button type="button" data-concept="a" aria-pressed="true"><span>A</span><div><strong>Control operativo</strong><small>Elegida · Overview estadístico A2</small></div></button>
+      <button type="button" data-concept="b" aria-pressed="false"><span>B</span><div><strong>Equipo en foco</strong><small>Evolución del diseño actual</small></div></button>
+      <button type="button" data-concept="c" aria-pressed="false"><span>C</span><div><strong>Mesa técnica</strong><small>Formularios claros y amplios</small></div></button>
+    </div>
+    <div class="preview-controls"><label>Vista de pantalla <select id="viewport"><option value="1440">Escritorio · 1440 px</option><option value="1280">Portátil · 1280 px</option><option value="768">Tablet · 768 px</option><option value="375">Móvil · 375 px</option><option value="fluid">Ancho de esta ventana</option></select></label><a id="open-concept" href="preview.html?concept=a" target="_blank" rel="noopener">Abrir propuesta a tamaño real ↗</a></div>
+    <div class="preview-caption"><span id="preview-label">A / Control operativo</span><span>Prototipo · datos ilustrativos · sin conexión a la base</span></div>
+    <div class="preview-space" id="preview-space"><iframe id="preview" src="preview.html?concept=a" title="Propuesta A — Control operativo"></iframe></div>
+    <section class="rationale" aria-live="polite"><div><span>Qué cambia</span><h2 id="concept-title">Control operativo</h2><p id="concept-description">A2: navegación lateral y un Overview estadístico con actividad temporal, estado documental, observaciones por sección y distribución por laboratorio o marca. El equipo permanece como contexto compacto.</p></div><div><span>Ideal para</span><p id="concept-use">Comprender tendencias y distribuciones, y abrir los registros detrás de cada gráfico.</p><span>Consideración</span><p id="concept-tradeoff">Datos ilustrativos. La conexión real necesita consultas agregadas sobre todos los registros autorizados, no solo los últimos 50.</p></div></section>
+    <footer>Las muestras permiten cambiar de vista, buscar y seleccionar registros. No modifican la app ni crean PM reales.</footer>
+  </main>
+  <script src="review.js"></script>
+</body>
+</html>

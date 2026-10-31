@@ -1,0 +1,201 @@
+/* Cryogenic glass: crisp data, softly refracting navigation and outer surfaces.
+   Screen-only styles keep maintenance documents and PDF output unchanged. */
+@media screen {
+  html { scroll-padding-block: 88px 24px; }
+  .appShell {
+    --glass-line: rgba(155, 220, 238, .23);
+    --glass-highlight: inset 0 1px 0 rgba(224, 250, 255, .2);
+    --glass-shadow: 0 12px 32px rgba(2, 13, 25, .15);
+    isolation: isolate;
+    background: #081d30;
+  }
+  /* A stationary light field stays behind the entire app as the content scrolls.
+     The pseudo-element never captures input or contains the fixed mobile dock. */
+  .appShell::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 36vw 48vh at 86% 28%, rgba(25, 187, 211, .35), rgba(20, 145, 179, .12) 56%, transparent 85%),
+      radial-gradient(ellipse 40vw 52vh at 36% 84%, rgba(63, 105, 227, .27), rgba(42, 91, 179, .09) 58%, transparent 88%),
+      radial-gradient(ellipse 30vw 48vh at 4% 35%, rgba(38, 154, 178, .18), transparent 85%),
+      linear-gradient(135deg, #0b2236, #081d30 54%, #0c223a);
+  }
+  .mobileNavLabel { display: none; }
+  .sidebar {
+    background: linear-gradient(165deg, rgba(33, 70, 90, .4), rgba(7, 24, 40, .94));
+    border-right-color: var(--glass-line);
+    box-shadow: inset -1px 0 rgba(224, 250, 255, .025);
+  }
+  .topbar {
+    background: rgba(10, 32, 49, .92);
+    border-bottom-color: var(--glass-line);
+    box-shadow: var(--glass-highlight), 0 5px 24px rgba(2, 13, 25, .08);
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+  .primaryNav button {
+    border: 1px solid transparent;
+    transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+  }
+  .primaryNav button.active {
+    color: #b6f3fb;
+    background: linear-gradient(130deg, rgba(131, 231, 247, .19), rgba(31, 130, 160, .13));
+    border-color: rgba(155, 220, 238, .27);
+    box-shadow: var(--glass-highlight), inset 2px 0 #64d8ee, 0 4px 16px rgba(0, 10, 24, .12);
+  }
+  .analytics-panel, .dataPanel, .accountPanel, .assignmentPanel,
+  .kairosEquipmentDetail, .equipmentIdentification, .formPanel, .contextPanel, .assetIdentity {
+    background: linear-gradient(145deg, rgba(32, 68, 89, .78), rgba(13, 38, 58, .93));
+    border-color: var(--glass-line);
+    box-shadow: var(--glass-highlight), var(--glass-shadow);
+  }
+  .analytics-metrics { border-color: var(--glass-line); }
+  .status-donut>div { background: #112e44; }
+  .appShell .ghostButton, .appShell .backButton,
+  .appShell .filterBar input, .appShell .filterBar select,
+  .analytics-toolbar input, .analytics-toolbar select {
+    background: linear-gradient(150deg, rgba(112, 185, 210, .1), rgba(10, 32, 49, .7));
+    border-color: rgba(155, 220, 238, .27);
+    box-shadow: inset 0 1px 0 rgba(224, 250, 255, .06);
+  }
+  /* A uniform transparent tint avoids a dark diagonal band over light content. */
+  .appShell .topbar .ghostButton {
+    background: rgba(10, 32, 49, .32);
+    border-color: rgba(155, 220, 238, .38);
+    color: #f4f8fb;
+    box-shadow: inset 0 1px 0 rgba(224, 250, 255, .12);
+  }
+  .analytics-toolbar select option, .appShell select option { background: #10293e; color: #f4f8fb; }
+  .appShell .primaryAction, .appShell .nextButton {
+    background: linear-gradient(160deg, #65dbed 0, #22b8d5 55%, #13a1c4 100%);
+    border-color: rgba(169, 242, 252, .55);
+    box-shadow: inset 0 1px 0 rgba(239, 254, 255, .5), 0 4px 16px rgba(0, 146, 179, .15);
+  }
+  .appShell .primaryAction:disabled, .appShell .nextButton:disabled {
+    background: #345467; border-color: #426075; box-shadow: none;
+  }
+  .avatar { background: linear-gradient(145deg, #276173, #12384e); box-shadow: inset 0 1px 0 rgba(209, 248, 255, .2); }
+  #analytics-detail { background: rgba(16, 41, 62, .97); border-color: rgba(155, 220, 238, .3); box-shadow: inset 0 1px 0 rgba(224, 250, 255, .13), 0 24px 80px #020d19; }
+  #analytics-detail::backdrop { background: rgba(1, 13, 23, .7); }
+  /* Document previews retain their own white paper surface and dark controls. */
+  .appShell .reportPreview .ghostButton { background: #f4f7f9; border-color: #acbcc9; box-shadow: none; }
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media screen {
+    .topbar { background: rgba(10, 32, 49, .48); -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); }
+    .analytics-panel, .dataPanel, .accountPanel, .assignmentPanel,
+    .kairosEquipmentDetail, .equipmentIdentification, .formPanel, .contextPanel, .assetIdentity {
+      background: linear-gradient(145deg, rgba(53, 91, 114, .35), rgba(10, 31, 50, .48));
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      backdrop-filter: blur(14px) saturate(120%);
+    }
+    #analytics-detail { background: rgba(16, 41, 62, .76); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+  }
+  @media screen and (min-width: 1181px) {
+    .sidebar {
+      background: linear-gradient(165deg, rgba(37, 75, 98, .3), rgba(7, 24, 40, .55));
+      -webkit-backdrop-filter: blur(22px);
+      backdrop-filter: blur(22px);
+    }
+  }
+}
+
+@media screen and (hover: hover) and (pointer: fine) {
+  .appShell .topbar .ghostButton:hover:not(:disabled) { background: rgba(10, 32, 49, .38); border-color: #80b7cb; }
+  .primaryNav button:hover { border-color: rgba(155, 220, 238, .28); background-color: rgba(119, 211, 232, .08); }
+  .analytics-panel:hover { border-color: rgba(155, 220, 238, .31); }
+  .appShell .primaryAction:hover:not(:disabled), .appShell .nextButton:hover:not(:disabled) { filter: brightness(1.08); }
+}
+
+/* One navigation landmark serves desktop and mobile; role permissions are shared. */
+@media screen and (max-width: 1180px) {
+  html { scroll-padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .sidebar { padding: 14px 24px 0; border: 0; background: transparent; box-shadow: none; gap: 0; }
+  .brand { flex-direction: row; align-items: center; gap: 12px; }
+  .brand img { width: 128px; height: 36px; }
+  .brand>div { display: flex; }
+  .brand strong { font-size: 19px; letter-spacing: -.4px; }
+  .brand small { display: none; }
+  .topbar { top: 0; min-height: 62px; }
+  .primaryNav {
+    position: fixed;
+    z-index: 45;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    max-width: 560px;
+    margin-inline: auto;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid rgba(172, 229, 245, .3);
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(38, 75, 96, .98), rgba(10, 31, 49, .98));
+    box-shadow: inset 0 1px 0 rgba(234, 253, 255, .25), inset 0 -1px 0 rgba(111, 190, 213, .08), 0 12px 36px rgba(0, 9, 21, .44);
+  }
+  .primaryNav button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 100%; min-width: 0; min-height: 62px; padding: 8px 2px; gap: 5px;
+    border-radius: 18px; text-align: center; font-size: 11px; line-height: 1.2; color: #bbcfdb;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .primaryNav .navIcon { display: block; width: 22px; height: 22px; }
+  .primaryNav .navLabel { display: none; }
+  .primaryNav .mobileNavLabel { display: block; }
+  .primaryNav button.active {
+    color: #d1faff;
+    background: linear-gradient(145deg, rgba(125, 226, 245, .24), rgba(47, 148, 178, .17));
+    border-color: rgba(165, 235, 250, .3);
+    box-shadow: inset 0 1px 0 rgba(232, 253, 255, .27), 0 3px 12px rgba(0, 10, 24, .18);
+  }
+  .primaryNav button:active { background-color: rgba(140, 229, 247, .2); }
+  .primaryNav button:focus-visible { outline-offset: -2px; }
+  .workspace .content { padding-bottom: calc(116px + env(safe-area-inset-bottom)); }
+  .appShell :is(input, select, textarea, button) { scroll-margin-block: 100px 120px; }
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media screen and (max-width: 1180px) {
+    .primaryNav {
+      background: linear-gradient(145deg, rgba(69, 117, 140, .42), rgba(10, 31, 49, .55));
+      -webkit-backdrop-filter: blur(24px) saturate(140%);
+      backdrop-filter: blur(24px) saturate(140%);
+    }
+  }
+}
+
+@media screen and (max-width: 650px) {
+  .appShell::before {
+    background:
+      radial-gradient(ellipse 80vw 42vh at 110% 24%, rgba(25, 187, 211, .32), transparent 90%),
+      radial-gradient(ellipse 90vw 48vh at 0% 85%, rgba(63, 105, 227, .28), transparent 88%),
+      linear-gradient(150deg, #0b2236, #081d30 54%, #0c223a);
+  }
+  .sidebar { padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
+  .topbar { padding-top: 8px; }
+  .brand img { width: 115px; height: 32px; }
+  .brand strong { font-size: 18px; }
+  .primaryNav { gap: 2px; padding: 5px; border-radius: 23px; }
+  .primaryNav button { min-height: 60px; }
+  .primaryNav .navIcon { width: 22px; height: 22px; }
+}
+
+@media screen and (max-width: 360px) {
+  .primaryNav button { font-size: 10px; }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .appShell::before { display: none; }
+  .appShell .sidebar, .appShell .topbar, .appShell .primaryNav, .appShell .analytics-panel,
+  .appShell .dataPanel, .appShell .accountPanel, .appShell .assignmentPanel,
+  .appShell .kairosEquipmentDetail, .appShell .equipmentIdentification, .appShell .formPanel,
+  .appShell .contextPanel, .appShell .assetIdentity, #analytics-detail {
+    background: #10293e; -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}

@@ -54,4 +54,4 @@ Validation on Windows with Node.js 24: production build and strict TypeScript ch
 - `features/pm/types.ts`: domain types.
 - `features/pm/helpers.ts`: numeric rules, labels and formatting.
 
-Questionnaires, signature consent and complete printable reports retain existing behavior. PDF generation remains browser printing; automatic PDF archival is outside this migration.
+Questionnaires and signature consent retain existing behavior. Following the migration, completed reports gained direct PDF downloads; see [PDF downloads](pdf-downloads.md). Automatic server-side archival remains outside the current scope.

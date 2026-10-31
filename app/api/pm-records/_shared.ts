@@ -1,4 +1,5 @@
-import { AuthenticationError } from "./_identity";
+import { RequestBodyError } from "@/lib/security/request";
+import { AuthenticationError, AuthorizationError } from "@/lib/auth";
 
 export const MAX_PAYLOAD_BYTES = 128_000;
 
@@ -6,6 +7,7 @@ export type Brand = "mve" | "taylor";
 export type PmStatus = "draft" | "ready_for_signature" | "completed" | "archived";
 
 export type DraftInput = {
+  catalogModelId?: unknown;
   brand?: unknown;
   modelFamily?: unknown;
   model?: unknown;
@@ -25,6 +27,7 @@ export type DraftInput = {
 };
 
 export type ValidDraftInput = {
+  catalogModelId: string | null;
   brand: Brand;
   modelFamily: string;
   model: string;
@@ -80,6 +83,7 @@ export function validateDraftInput(input: DraftInput): ValidDraftInput {
   }
 
   return {
+    catalogModelId: optionalText(input.catalogModelId, "catalogModelId", 80),
     brand: input.brand,
     modelFamily,
     model,
@@ -108,6 +112,8 @@ export function parsePayload(payloadJson: string) {
 }
 
 export function apiError(error: unknown) {
+  if (error instanceof RequestBodyError) return Response.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "no-store, private" } });
+  if (error instanceof AuthorizationError) return Response.json({ error: error.message }, { status: 403 });
   if (error instanceof AuthenticationError) {
     return Response.json({ error: error.message }, { status: 401 });
   }

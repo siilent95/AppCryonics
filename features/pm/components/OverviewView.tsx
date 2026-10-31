@@ -1,79 +1,36 @@
 "use client";
-import type { WorkspaceView, RecordsStatus, PmRecordSummary } from "@/features/pm/types";
-
-import { formatDate, pmDate, freezerImage, brandLabel, statusLabel } from "@/features/pm/helpers";
-import { RecordsMessage } from "@/features/pm/components/RecordsMessage";
-export function OverviewView({
-  error,
-  onNavigate,
-  onRetry,
-  records,
-  status,
-}: {
-  error: string;
-  onNavigate: (view: WorkspaceView) => void;
-  onRetry: () => void;
-  records: PmRecordSummary[];
-  status: RecordsStatus;
-}) {
-  if (status !== "loaded") return <RecordsMessage error={error} onRetry={onRetry} status={status} />;
-
-  const completed = records.filter((record) => record.status === "completed");
-  const open = records.filter((record) => record.status !== "completed" && record.status !== "archived");
-  const equipmentKeys = new Set(
-    records.map((record) => `${record.brand}:${record.freezerSerial?.trim().toUpperCase() || record.id}`),
-  );
-  const completionRate = records.length === 0 ? 0 : Math.round((completed.length / records.length) * 100);
-  const mveCount = records.filter((record) => record.brand === "mve").length;
-  const taylorCount = records.filter((record) => record.brand === "taylor").length;
-  const readyForExport = completed.filter((record) =>
-    record.technicianSignatureCapturedAt && !record.technicianSignatureDeletedAt &&
-    record.recipientSignatureCapturedAt && !record.recipientSignatureDeletedAt,
-  );
-  const signaturePending = records.filter((record) => record.status === "ready_for_signature");
-  const featured = completed[0] ?? records[0];
-  const featuredImage = featured
-    ? freezerImage(featured.brand, featured.modelFamily, featured.model)
-    : { src: "/freezers/mve-heco-800.webp", exact: false };
-  const recent = records.filter((record) => record.status !== "archived").slice(0, 3);
-
-  return (
-    <div className="kairosOverview" aria-label="Maintenance overview">
-      <div className="kairosOverviewGrid">
-        <div className="kairosOverviewRail">
-          <section className="kairosPanel kairosActivityPanel">
-            <h1>Alerts &amp; service facts</h1>
-            <div className="kairosActivityList">
-              {recent.length === 0 ? <p className="kairosEmpty">No PM activity yet. Start a PM to populate this dashboard.</p> : recent.map((record) => (
-                <button className="kairosActivity" key={record.id} onClick={() => onNavigate("reports")} type="button">
-                  <span className="kairosDot" aria-hidden="true" />
-                  <span><strong>{statusLabel(record.status)} · {record.recordNumber}</strong><small>{brandLabel(record.brand)} {record.model} · {record.labName || "Lab pending"}</small></span>
-                </button>
-              ))}
-            </div>
-            <div className="kairosFacts"><div><strong>{equipmentKeys.size}</strong><span>Equipment</span></div><div><strong>{records.length}</strong><span>PMs</span></div><div><strong>{open.length}</strong><span>Open</span></div></div>
-          </section>
-          <section className="kairosPanel kairosProgressPanel">
-            <h2>PM completion</h2><p>Completed records</p>
-            <div className="kairosProgressBody"><div className="kairosRing" style={{ background: `conic-gradient(var(--cyan) 0 ${completionRate}%, rgba(255,255,255,.15) ${completionRate}% 100%)` }}><span>{completionRate}%</span></div><div><strong>{completed.length} completed</strong><small>of {records.length} PM records</small></div></div>
-            <button className="kairosCta" onClick={() => onNavigate("reports")} type="button">View reports</button>
-          </section>
-        </div>
-
-        <section className="kairosProductStage" aria-label="Featured freezer">
-          <div className="kairosProductTop"><span>Featured equipment / {featured?.modelFamily || "MVE and Taylor-Wharton"}</span>{featured && <b>{featured.model}</b>}</div>
-          <div className="kairosProductHalo" aria-hidden="true" />
-          <div className="kairosProductImage" role="img" aria-label={featured ? `${brandLabel(featured.brand)} ${featured.model} freezer reference` : "MVE freezer reference"} style={{ backgroundImage: `url("${featuredImage.src}")` }} />
-          {featured && <div className="kairosProductDate"><span>LAST PM</span><strong>{formatDate(pmDate(featured))}</strong><small>{statusLabel(featured.status)}</small></div>}
-          <div className="kairosProductFooter"><div><strong>{featured ? `${brandLabel(featured.brand)} ${featured.modelFamily}` : "MVE and Taylor-Wharton"}</strong><span>{featured ? `${featured.labName || "Lab pending"} · ${featured.freezerSerial || "Serial pending"} · ${statusLabel(featured.status)}` : "Start the first PM to see equipment details"}</span></div><button onClick={() => onNavigate(featured ? "equipment" : "orders")} type="button">{featured ? "View equipment" : "Start a PM"}</button></div>
-        </section>
-
-        <div className="kairosOverviewRail">
-          <section className="kairosPanel kairosMetricPanel"><h2>PM activity</h2><strong className="kairosBigNumber">{completed.length}</strong><p>completed records</p><div className="kairosMeter" aria-hidden="true">{Array.from({ length: 14 }, (_, index) => <i className={index < Math.round(completionRate * 14 / 100) ? "" : "dim"} key={index} />)}</div></section>
-          <section className="kairosPanel kairosBrandPanel"><h2>PM records by brand</h2><div className="kairosBrandRow"><span>MVE</span><strong>{mveCount}</strong><i><b style={{ width: `${records.length ? (mveCount / records.length) * 100 : 0}%` }} /></i></div><div className="kairosBrandRow"><span>Taylor-Wharton</span><strong>{taylorCount}</strong><i><b style={{ width: `${records.length ? (taylorCount / records.length) * 100 : 0}%` }} /></i></div></section>
-          <section className="kairosPanel kairosClosurePanel"><h2>Report closure</h2><div><span>Signed reports ready</span><strong>{readyForExport.length}</strong></div><div><span>Pending signature</span><strong>{signaturePending.length}</strong></div><div><span>Open work</span><strong>{open.length}</strong></div><button onClick={() => onNavigate("reports")} type="button">Open report queue</button></section>
-        </div>
-      </div>
-    </div>
-  );
+import type { CatalogBrand } from "@/features/equipment/types";
+import { useState } from "react";
+import type { AnalyticsData, AnalyticsFilters, AnalyticsRecord, Drill } from "../analytics/types";
+import { filterQuery, localToday, shortDate, useAnalyticsResource } from "../analytics/useAnalytics";
+import { TrendChart } from "../analytics/TrendChart";
+import { StatusChart } from "../analytics/StatusChart";
+import { ContextPanels } from "../analytics/ContextPanels";
+import { TopEquipment } from "../analytics/TopEquipment";
+import { RecordsDialog } from "../analytics/RecordsDialog";
+export function OverviewView({ models = [], brands = [], scopeLabel = "Your account", refresh, onWorkspace, onOpenRecord }: { models?: import("@/features/equipment/types").CatalogModel[]; brands?: CatalogBrand[]; scopeLabel?: string; refresh: number; onWorkspace: () => void; onOpenRecord: (record: AnalyticsRecord) => void }) {
+  const [filters, setFilters] = useState<AnalyticsFilters>(() => ({ days: 90, brand: "all", end: localToday() }));
+  const [retry, setRetry] = useState(0);
+  const [drill, setDrill] = useState<Drill | null>(null);
+  const response = useAnalyticsResource<AnalyticsData>(`/api/pm-analytics?${filterQuery(filters)}&refresh=${refresh}-${retry}`);
+  const data = response?.data;
+  const rate = data?.total ? Math.round(data.completed / data.total * 100) : 0;
+  const delta = data ? data.total - data.previousTotal : 0;
+  return <div className="analyticsOverview">
+    <div className="overviewHeading"><div><h1>Maintenance overview</h1></div><button className="primaryAction" type="button" onClick={onWorkspace}>PM workspace</button></div>
+    <section className="analytics-toolbar" aria-label="Dashboard filters"><div>
+      <label>Period<select value={filters.days} onChange={event => setFilters({ ...filters, days: Number(event.target.value) as AnalyticsFilters["days"] })}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
+      <label>Brand<select value={filters.brand} onChange={event => setFilters({ ...filters, brand: event.target.value as AnalyticsFilters["brand"] })}><option value="all">All brands</option>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
+      <label>Ending on<input type="date" value={filters.end} onChange={event => { if (event.target.value && /^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) setFilters({ ...filters, end: event.target.value }); }} /></label>
+    </div><p>{data ? `${shortDate(data.start)} – ${shortDate(data.end)}, ${data.end.slice(0, 4)}` : "Selected period"}<span>{scopeLabel} · Saved PM records</span></p></section>
+    {!response ? <div className="analytics-loading" role="status">Loading maintenance statistics…</div> : response.error ? <div className="analytics-loading" role="alert"><p>{response.error}</p><button className="ghostButton" type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : data && <>
+      <section className="analytics-metrics" aria-label="Period summary"><div><span>PM records</span><strong>{data.total}</strong><small>{delta > 0 ? "+" : ""}{delta} vs previous {filters.days} days</small></div><div><span>Completed records</span><strong>{data.completed}<em>{rate}%</em></strong><small>Documented closure</small></div><div><span>Open records</span><strong>{data.review + data.draft}</strong><small>{data.review} at Review · {data.draft} other drafts</small></div><div><span>Equipment with PMs</span><strong>{data.equipment}</strong><small>Within selected period</small></div></section>
+      {data.total === 0 && <p className="overviewEmpty" role="status">No PM records match this period and brand. Change the filters or open the PM workspace to record maintenance.</p>}
+      <div className="analytics-top"><TrendChart data={data} days={filters.days} onDrill={setDrill} /><StatusChart data={data} onDrill={setDrill} /></div>
+      <TopEquipment data={data} models={models} onDrill={setDrill} />
+      <ContextPanels models={models} data={data} onDrill={setDrill} />
+      <div className="analytics-method"><span>All panels share the selected period and brand. Archived records are excluded. Equipment counts use brand and freezer serial.</span><span>{data.undated > 0 && `${data.undated} records without a valid PM date excluded. `}{data.missingSerial > 0 && `${data.missingSerial} PMs without a freezer serial excluded from equipment count.`}</span></div>
+    </>}
+    {drill && <RecordsDialog drill={drill} filters={filters} onClose={() => setDrill(null)} onOpenRecord={onOpenRecord} />}
+  </div>;
 }
