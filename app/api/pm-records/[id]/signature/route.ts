@@ -1,7 +1,12 @@
-import { and, eq, isNull, or } from "drizzle-orm";
-import { getDb } from "../../../../../db";
+import sharp from "sharp";
+import { readJsonObject } from "@/lib/security/request";
+import { signatureSource } from "@/lib/pm/corrections";
+import { validateExaminationOrder } from "@/lib/pm/validation";
+import { requireActor } from "@/lib/auth";
+import { pmReadScope, pmWriteScope } from "@/lib/pm/access";
+import { and, eq, isNull } from "drizzle-orm";
+import { getDb, transactionalResponse } from "../../../../../db";
 import { pmEvents, pmRecords } from "../../../../../db/schema";
-import { requireActorSubject } from "../../_identity";
 import { purgeExpiredSignatures } from "../../_retention";
 import { getSignatureBucket } from "../../_signature-storage";
 import { apiError, parsePayload, RequestValidationError } from "../../_shared";
@@ -30,40 +35,26 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const role = parseSignatureRole(request);
-    const actorSubject = await requireActorSubject(request);
+    const actor = await requireActor(request);
     await purgeExpiredSignatures();
     const db = getDb();
     const [record] = await db
-      .select({
-        ownerSubject: pmRecords.ownerSubject,
-        recipientKey: pmRecords.recipientSignatureKey,
-        recipientMimeType: pmRecords.recipientSignatureMimeType,
-        recipientDeletedAt: pmRecords.recipientSignatureDeletedAt,
-        technicianKey: pmRecords.technicianSignatureKey,
-        technicianMimeType: pmRecords.technicianSignatureMimeType,
-        technicianDeletedAt: pmRecords.technicianSignatureDeletedAt,
-      })
+      .select()
       .from(pmRecords)
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          pmReadScope(actor),
           isNull(pmRecords.deletedAt),
         ),
       )
       .limit(1);
 
     if (!record) return Response.json({ error: "PM record not found." }, { status: 404 });
-    if (!record.ownerSubject) {
-      await db
-        .update(pmRecords)
-        .set({ ownerSubject: actorSubject, ownerEmail: null })
-        .where(and(eq(pmRecords.id, id), isNull(pmRecords.ownerSubject)));
-    }
-
-    const key = role === "technician" ? record.technicianKey : record.recipientKey;
-    const mimeType = role === "technician" ? record.technicianMimeType : record.recipientMimeType;
-    const deletedAt = role === "technician" ? record.technicianDeletedAt : record.recipientDeletedAt;
+    const source = await signatureSource(record);
+    const key = role === "technician" ? source.technicianSignatureKey : source.recipientSignatureKey;
+    const mimeType = role === "technician" ? source.technicianSignatureMimeType : source.recipientSignatureMimeType;
+    const deletedAt = role === "technician" ? source.technicianSignatureDeletedAt : source.recipientSignatureDeletedAt;
     const roleLabel = role === "technician" ? "Technician" : "Recipient";
 
     if (!key || deletedAt) {
@@ -87,15 +78,20 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  try { return await transactionalResponse(() => mutate(request, context)); }
+  catch (error) { return apiError(error); }
+}
+
+async function mutate(request: Request, context: RouteContext) {
   let storedKeys: string[] = [];
   try {
     const { id } = await context.params;
-    const actorSubject = await requireActorSubject(request);
-    const input = validateSignatureInput((await request.json()) as SignatureInput);
+    const actor = await requireActor(request);
+    const actorSubject = actor.id;
+    const input = await validateSignatureInput(await readJsonObject(request, 1_040_000) as SignatureInput);
     const db = getDb();
     const [record] = await db
       .select({
-        ownerSubject: pmRecords.ownerSubject,
         recordNumber: pmRecords.recordNumber,
         status: pmRecords.status,
         revision: pmRecords.revision,
@@ -109,7 +105,7 @@ export async function POST(request: Request, context: RouteContext) {
       .where(
         and(
           eq(pmRecords.id, id),
-          or(eq(pmRecords.ownerSubject, actorSubject), isNull(pmRecords.ownerSubject)),
+          pmWriteScope(actor),
           isNull(pmRecords.deletedAt),
         ),
       )
@@ -170,7 +166,6 @@ export async function POST(request: Request, context: RouteContext) {
     const [updated] = await db
       .update(pmRecords)
       .set({
-        ownerSubject: actorSubject,
         ownerEmail: null,
         status: "completed",
         currentStep: "review",
@@ -258,7 +253,7 @@ function parseSignatureRole(request: Request): SignatureRole {
   throw new RequestValidationError("Signature role must be recipient or technician.");
 }
 
-function validateSignatureInput(input: SignatureInput) {
+async function validateSignatureInput(input: SignatureInput) {
   if (typeof input.technicianName !== "string" || !input.technicianName.trim() || input.technicianName.trim().length > 120) {
     throw new RequestValidationError("Responsible technician name is required (maximum 120 characters).");
   }
@@ -281,39 +276,23 @@ function validateSignatureInput(input: SignatureInput) {
   return {
     expectedRevision,
     technicianName: input.technicianName.trim(),
-    recipientBytes: parseSignatureDataUrl(input.recipientSignatureDataUrl, "Recipient"),
-    technicianBytes: parseSignatureDataUrl(input.technicianSignatureDataUrl, "Technician"),
+    recipientBytes: await parseSignatureDataUrl(input.recipientSignatureDataUrl, "Recipient"),
+    technicianBytes: await parseSignatureDataUrl(input.technicianSignatureDataUrl, "Technician"),
   };
 }
 
-function validateExaminationOrder(payload: Record<string, unknown>) {
-  const values = payload.examination;
-  if (!values || typeof values !== "object" || Array.isArray(values)) {
-    throw new RequestValidationError("Examination values must be completed before signing.");
-  }
-  const exam = values as Record<string, unknown>;
-  const pairs = [
-    ["lowTemperature", "highTemperature"],
-    ["lowLevelAlarm", "highLevelAlarm"],
-    ["lowLevelSetPoint", "highLevelSetPoint"],
-  ] as const;
-  for (const [minimum, maximum] of pairs) {
-    const low = Number(exam[minimum]);
-    const high = Number(exam[maximum]);
-    if (exam[minimum] === "" || exam[maximum] === "" || !Number.isFinite(low) || !Number.isFinite(high) || low >= high) {
-      throw new RequestValidationError(`${minimum} must be lower than ${maximum}.`);
-    }
-  }
-}
 
-function parseSignatureDataUrl(value: unknown, label: string) {
+async function parseSignatureDataUrl(value: unknown, label: string) {
   if (typeof value !== "string") {
     throw new RequestValidationError(`${label} signature is required.`);
   }
   const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(value);
   if (!match) throw new RequestValidationError(`${label} signature must be a PNG image.`);
 
-  const bytes = Uint8Array.from(atob(match[1]), (character) => character.charCodeAt(0));
+  if (match[1].length > Math.ceil(MAX_SIGNATURE_BYTES / 3) * 4) throw new RequestValidationError(`${label} signature image size is invalid.`);
+  let bytes: Uint8Array;
+  try { bytes = Uint8Array.from(atob(match[1]), character => character.charCodeAt(0)); }
+  catch { throw new RequestValidationError(`${label} signature must use valid PNG encoding.`); }
   if (bytes.byteLength < 100 || bytes.byteLength > MAX_SIGNATURE_BYTES) {
     throw new RequestValidationError(`${label} signature image size is invalid.`);
   }
@@ -321,6 +300,12 @@ function parseSignatureDataUrl(value: unknown, label: string) {
   if (!pngHeader.every((byte, index) => bytes[index] === byte)) {
     throw new RequestValidationError(`${label} signature image is invalid.`);
   }
+  try {
+    const image = sharp(bytes, { limitInputPixels: 2_000_000, animated: false, failOn: "warning" });
+    const metadata = await image.metadata();
+    if (metadata.format !== "png" || (metadata.pages || 1) !== 1) throw new Error();
+    await image.raw().toBuffer();
+  } catch { throw new RequestValidationError(`${label} signature must be a valid PNG image (maximum 2 megapixels).`); }
   return bytes;
 }
 

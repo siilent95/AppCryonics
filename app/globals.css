@@ -23,7 +23,7 @@
 html, body { margin: 0; min-height: 100%; background: var(--soft); color: var(--ink); }
 
 body {
-  font-family: Bahnschrift, var(--font-geist-sans), Arial, sans-serif;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -368,8 +368,8 @@ h1 { font-size: 26px; letter-spacing: -.7px; line-height: 1.1; margin: 0; }
 .tableIdentity { display: flex; align-items: center; gap: 9px; }
 .reportsGrid { display: grid; grid-template-columns: minmax(360px, .76fr) minmax(0, 1.24fr); gap: 18px; align-items: start; }
 .reportList { max-height: calc(100vh - 290px); min-height: 400px; overflow-y: auto; padding: 7px; }
-.reportList > button { width: 100%; min-height: 78px; padding: 11px 10px; border: 1px solid transparent; border-bottom-color: #edf0f3; background: #fff; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; text-align: left; }
-.reportList > button:hover, .reportList > button.selected { border-color: #b8dbe0; border-radius: 9px; background: #f3fafb; }
+.reportList .reportSelect { width: 100%; min-height: 78px; padding: 11px 10px; border: 1px solid transparent; border-bottom-color: #edf0f3; background: #fff; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; text-align: left; }
+.reportList .reportSelect:hover, .reportList .reportSelect.selected { border-color: #b8dbe0; border-radius: 9px; background: #f3fafb; }
 .reportList strong { font-size: 9px; }
 .reportList button div > span, .reportList button div > small { color: var(--muted); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reportPreview { min-height: 590px; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: 0 5px 22px rgba(21,35,51,.04); overflow: hidden; }
@@ -527,8 +527,8 @@ h1 { font-size: 26px; letter-spacing: -.7px; line-height: 1.1; margin: 0; }
   .reportAnswerSummary { grid-template-columns: repeat(2, 1fr); }
   .reportAnswerSummary div:nth-child(2) { border-right: 0; }
   .reportAnswerSummary div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
-  .reportList > button { grid-template-columns: auto minmax(0, 1fr); }
-  .reportList > button > .recordStatus { grid-column: 2; }
+  .reportList .reportSelect { grid-template-columns: auto minmax(0, 1fr); }
+  .reportList .reportSelect > .recordStatus { grid-column: 2; }
   .reportCoverFacts { grid-template-columns: 1fr; }
   .pmReportSectionHeading { align-items: flex-start; flex-direction: column; gap: 10px; }
   .pmReportSectionHeading img { width: 130px; }
@@ -572,3 +572,10 @@ h1 { font-size: 26px; letter-spacing: -.7px; line-height: 1.1; margin: 0; }
   .reportSignatureGrid img, .reportSignatureGrid figure > div { height: 30mm; }
   .reportAuditSection { display: none !important; }
 }
+
+:root { --font-geist-sans: "IBM Plex Sans", Arial, sans-serif; --font-geist-mono: Consolas, monospace; }
+.accountBar { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; padding: .5rem 1rem; background: #f4f7fa; font-size: .875rem; }
+.loginPanel { max-width: 400px; margin: 10vh auto; padding: 2rem; }
+.loginPanel label { display: block; margin: 1rem 0; }
+.loginPanel input { display: block; width: 100%; padding: .6rem; border: 1px solid #a4b0bb; border-radius: .3rem; }
+@media print { .accountBar { display: none; } }

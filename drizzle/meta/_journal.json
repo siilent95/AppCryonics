@@ -1,33 +1,47 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1785446877156,
-      "tag": "0000_initial_pm_backend",
+      "version": "7",
+      "when": 1791062831436,
+      "tag": "0000_lush_ben_grimm",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1785449868083,
-      "tag": "0001_signature_privacy",
+      "version": "7",
+      "when": 1792767738523,
+      "tag": "0001_roles_and_invitations",
       "breakpoints": true
     },
     {
       "idx": 2,
-      "version": "6",
-      "when": 1785451755495,
-      "tag": "0002_technician_signature",
+      "version": "7",
+      "when": 1792772482041,
+      "tag": "0002_equipment_catalog",
       "breakpoints": true
     },
     {
       "idx": 3,
-      "version": "6",
-      "when": 1790035200000,
-      "tag": "0003_pm_parties",
+      "version": "7",
+      "when": 1792772912481,
+      "tag": "0003_equipment_brand_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792784342415,
+      "tag": "0004_pm_corrections",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792788765316,
+      "tag": "0005_pm_trash_retention",
       "breakpoints": true
     }
   ]

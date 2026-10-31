@@ -1,11 +1,28 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import "@fontsource/ibm-plex-sans/latin-400.css";
+import "@fontsource/ibm-plex-sans/latin-500.css";
+import "@fontsource/ibm-plex-sans/latin-600.css";
 import "./globals.css";
+import "./workspace.css";
+import "@/features/accounts/accounts.css";
+import "@/features/pm/analytics/overview.css";
+import "./glass.css";
+import "@/features/equipment/equipment.css";
+import "./field-qa.css";
+import "./auth.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#081d30",
+};
+
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_ORIGIN || "http://localhost:3000"),
   title: "CryoPM · Cryogenics Solution Inc.",
   description: "Preventive maintenance records for cryogenic equipment.",
   icons: { icon: "/brand/icon.png" },
@@ -22,10 +39,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <body >{children}</body>
     </html>
   );
 }

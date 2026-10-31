@@ -1,0 +1,1 @@
+CREATE INDEX "pm_records_deleted_at_idx" ON "pm_records" USING btree ("deleted_at");

@@ -1,0 +1,100 @@
+import type { PmRecordSummary } from "../features/pm/types";
+import assert from "node:assert/strict";
+import { eq, inArray } from "drizzle-orm";
+import { getDb } from "../db";
+import { pmEvents, pmRecords } from "../db/schema";
+import { createSession } from "../lib/auth";
+import { GET as list, POST as create } from "../app/api/pm-records/route";
+import { DELETE as remove, GET as detail, PUT as update } from "../app/api/pm-records/[id]/route";
+import { POST as restore } from "../app/api/pm-records/[id]/restore/route";
+import { POST as correct } from "../app/api/pm-records/[id]/corrections/route";
+import { POST as sign, GET as signature } from "../app/api/pm-records/[id]/signature/route";
+import { GET as pdf } from "../app/api/pm-records/[id]/pdf/route";
+import { GET as analytics } from "../app/api/pm-analytics/route";
+import { POST as assign } from "../app/api/pm-records/[id]/assignment/route";
+import { completeQaDraft, qaSigningInput } from "./fixtures/pm";
+
+export async function testReportsManagement() {
+  const db = getDb();
+  const tech = await createSession("technician-a"), other = await createSession("technician-b"), admin = await createSession("correction-admin");
+  const req = (method: string, path: string, body?: unknown, token = tech) => new Request(`http://localhost:3000${path}`, { method, headers: { cookie: `cryopm_session=${token}`, origin: "http://localhost:3000", "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+  const page = async (query: string, token = tech) => { const response = await list(req("GET", `/api/pm-records?${query}`, undefined, token)); assert.equal(response.status, 200); return await response.json() as { records: PmRecordSummary[]; brands: { id: string; name: string }[]; pagination: { page: number; pageSize: number; total: number; pages: number } }; };
+  const ids: string[] = [];
+  for (let index = 0; index < 27; index++) {
+    const input = { ...completeQaDraft(index === 0 ? "taylor" : "mve", "2026-10-10"), freezerSerial: `QA-PAGINATION-${String(index).padStart(2, "0")}` };
+    const response = await create(req("POST", "/api/pm-records", input)); assert.equal(response.status, 201);
+    const id = (await response.json()).record.id; ids.push(id);
+    await db.update(pmRecords).set({ updatedAt: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00.000Z` }).where(eq(pmRecords.id, id));
+  }
+  const first = await page("q=QA-PAGINATION&pageSize=100");
+  const second = await page("q=QA-PAGINATION&page=2");
+  assert.deepEqual(first.pagination, { page: 1, pageSize: 25, total: 27, pages: 2 });
+  assert.equal(first.records.length, 25); assert.equal(second.records.length, 2);
+  assert.equal(new Set([...first.records, ...second.records].map(record => record.id)).size, 27);
+  assert.ok(!first.records.some(record => record.id === ids[0]));
+  assert.ok(first.brands.some(brand => brand.id === "taylor"), "brand options include rows beyond the current page");
+  assert.equal((await page("q=QA-PAGINATION-00&brand=taylor&status=draft&from=2026-10-10&to=2026-10-10")).records[0].id, ids[0], "filters search beyond the first page");
+  assert.equal((await page("q=QA-PAGINATION&brand=taylor")).pagination.total, 1);
+  assert.equal((await page("q=QA-PAGINATION", other)).pagination.total, 0);
+  assert.equal((await page("q=QA-PAGINATION&page=999")).pagination.page, 2);
+  assert.equal((await page("q=QA-PAGINATION-__")).pagination.total, 0, "wildcards are literal search text");
+  for (const query of ["page=0", "page=-1", "page=abc", "status=bad", "from=2026-02-30", "from=2026-12-01&to=2026-01-01"]) assert.equal((await list(req("GET", `/api/pm-records?${query}`))).status, 400);
+
+  const id = ids[0], path = `/api/pm-records/${id}`;
+  assert.equal((await remove(req("DELETE", path, { expectedRevision: 1 }, other), ctx(id))).status, 404);
+  const forged = req("DELETE", path, { expectedRevision: 1 }); forged.headers.set("origin", "https://other.test");
+  assert.equal((await remove(forged, ctx(id))).status, 401);
+  assert.equal((await remove(req("DELETE", path, {}), ctx(id))).status, 400);
+  assert.equal((await remove(req("DELETE", path, { expectedRevision: 2 }), ctx(id))).status, 409);
+  assert.equal((await remove(req("DELETE", path, { expectedRevision: 1 }), ctx(id))).status, 200);
+  assert.equal((await detail(req("GET", path), ctx(id))).status, 404);
+  assert.equal((await page("q=QA-PAGINATION")).pagination.total, 26);
+  let trash = await page("q=QA-PAGINATION&view=trash");
+  assert.equal(trash.records.length, 1); assert.equal(trash.records[0].id, id); assert.equal(trash.records[0].revision, 2);
+  assert.equal((await restore(req("POST", `${path}/restore`, { expectedRevision: 2 }, other), ctx(id))).status, 404);
+  assert.equal((await restore(req("POST", `${path}/restore`, { expectedRevision: 1 }), ctx(id))).status, 409);
+  assert.equal((await restore(req("POST", `${path}/restore`, { expectedRevision: 2 }), ctx(id))).status, 200);
+  assert.equal((await detail(req("GET", path), ctx(id))).status, 200);
+  assert.equal((await page("q=QA-PAGINATION&view=trash")).pagination.total, 0);
+
+  const originalResponse = await create(req("POST", "/api/pm-records", { ...completeQaDraft("mve", "2026-10-12"), freezerSerial: "QA-DELETE-CHAIN" }));
+  const originalId = (await originalResponse.json()).record.id;
+  const originalPath = `/api/pm-records/${originalId}`;
+  assert.equal((await sign(req("POST", `${originalPath}/signature`, await qaSigningInput(1)), ctx(originalId))).status, 200);
+  const bytes = Buffer.from(await (await signature(req("GET", `${originalPath}/signature?role=technician`), ctx(originalId))).arrayBuffer());
+  const original = (await db.select().from(pmRecords).where(eq(pmRecords.id, originalId)))[0];
+  const amendment = await correct(req("POST", `${originalPath}/corrections`, { reason: "TEST ONLY. Deletion and restore retain all version history.", expectedRevision: 2 }), ctx(originalId));
+  assert.equal(amendment.status, 201);
+  const correctionId = (await amendment.json()).record.id;
+  const correctionPath = `/api/pm-records/${correctionId}`;
+  assert.equal((await remove(req("DELETE", originalPath, { expectedRevision: 2 }), ctx(originalId))).status, 409, "older versions cannot be deleted independently");
+  assert.equal((await assign(req("POST", `${correctionPath}/assignment`, { technicianId: "technician-b", expectedRevision: 1 }, admin), ctx(correctionId))).status, 200);
+  const creatorPage = await page("q=QA-DELETE-CHAIN");
+  assert.equal(creatorPage.records[0].canDelete, false, "creator with read-only access cannot delete reassigned reports");
+  assert.equal((await remove(req("DELETE", correctionPath, { expectedRevision: 2 }), ctx(correctionId))).status, 404);
+  const stats = async () => (await (await analytics(req("GET", "/api/pm-analytics?days=30&end=2026-10-23", undefined, admin))).json()).total;
+  const before = await stats();
+  const deletion = await remove(req("DELETE", correctionPath, { expectedRevision: 2 }, other), ctx(correctionId)); assert.equal(deletion.status, 200);
+  assert.deepEqual(new Set((await deletion.json()).ids), new Set([originalId, correctionId]));
+  assert.equal(await stats(), before - 1);
+  for (const deletedId of [originalId, correctionId]) {
+    const deletedPath = `/api/pm-records/${deletedId}`;
+    assert.equal((await detail(req("GET", deletedPath, undefined, admin), ctx(deletedId))).status, 404);
+    assert.equal((await pdf(req("GET", `${deletedPath}/pdf`, undefined, admin), ctx(deletedId))).status, 404);
+    assert.equal((await signature(req("GET", `${deletedPath}/signature?role=technician`, undefined, admin), ctx(deletedId))).status, 404);
+  }
+  assert.equal((await page("q=QA-DELETE-CHAIN")).pagination.total, 0);
+  trash = await page("q=QA-DELETE-CHAIN&view=trash", other); assert.equal(trash.records.length, 1); assert.equal(trash.records[0].id, correctionId);
+  assert.equal((await page("q=QA-DELETE-CHAIN&view=trash")).records[0].canDelete, false);
+  assert.equal((await restore(req("POST", `${correctionPath}/restore`, { expectedRevision: 3 }, admin), ctx(correctionId))).status, 200);
+  const restored = (await (await detail(req("GET", correctionPath, undefined, admin), ctx(correctionId))).json()); assert.equal(restored.versions.length, 2);
+  assert.equal(await stats(), before);
+  assert.deepEqual(Buffer.from(await (await signature(req("GET", `${originalPath}/signature?role=technician`), ctx(originalId))).arrayBuffer()), bytes);
+  const originalAfter = (await db.select().from(pmRecords).where(eq(pmRecords.id, originalId)))[0];
+  assert.equal(originalAfter.payloadJson, original.payloadJson); assert.equal(originalAfter.technicianSignatureCapturedAt, original.technicianSignatureCapturedAt);
+  const events = await db.select().from(pmEvents).where(inArray(pmEvents.recordId, [originalId, correctionId]));
+  assert.equal(events.filter(event => event.eventType === "deleted").length, 2); assert.equal(events.filter(event => event.eventType === "restored").length, 2);
+  assert.ok(events.filter(event => event.eventType === "deleted").every(event => event.actorSubject === "technician-b"));
+  assert.equal((await update(req("PUT", correctionPath, { ...completeQaDraft("mve", "2026-10-12"), expectedRevision: 2 }, other), ctx(correctionId))).status, 409, "stale workspaces cannot overwrite a restored PM");
+}

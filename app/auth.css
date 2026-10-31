@@ -1,0 +1,104 @@
+@media screen {
+  .authScreen {
+    min-height:100vh;
+    min-height:100svh;
+    display:grid;
+    place-items:center;
+    padding:max(28px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));
+    isolation:isolate;
+    background:#081d30;
+    position:relative;
+  }
+  .authScreen::before {
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background:
+      radial-gradient(ellipse 46% 60% at 77% 22%,rgba(25,187,211,.26),transparent 85%),
+      radial-gradient(ellipse 50% 60% at 19% 85%,rgba(63,105,227,.23),transparent 85%),
+      linear-gradient(135deg,#0b2236,#081d30 54%,#0c223a);
+  }
+  .authScreen .signInPanel {
+    width:100%;
+    max-width:460px;
+    margin:0;
+    padding:32px;
+    border:1px solid rgba(155,220,238,.32);
+    border-radius:22px;
+    background:linear-gradient(145deg,rgba(33,69,90,.97),rgba(10,31,50,.98));
+    box-shadow:inset 0 1px rgba(224,250,255,.24),0 24px 80px rgba(0,9,21,.25);
+    color:#f4f8fb;
+    font-weight:500;
+  }
+  .signInLogo { display:block; width:212px; max-width:100%; height:auto; object-fit:contain; object-position:left center; margin-bottom:28px; }
+  .signInIdentity { margin-bottom:28px; }
+  .signInPanel h1 { margin:0; font-size:34px; font-weight:600; letter-spacing:-.8px; line-height:1.15; }
+  .signInPanel .signInIdentity p { margin:8px 0 0; color:#c0d0dc; font-size:15px; line-height:1.5; }
+  .signInPanel form { display:grid; gap:22px; }
+  .signInPanel form>label,.loginPanel .passwordField>label { display:block; margin:0; color:#e2edf4; font-size:14px; font-weight:500; line-height:1.5; }
+  .signInPanel input { min-height:52px; border:1px solid #648497; border-radius:10px; background:rgba(5,23,39,.64); padding:12px 14px; color:#f4f8fb; font:inherit; font-size:16px; caret-color:#9be7f0; }
+  .signInPanel form>label>input { margin-top:8px; }
+  .loginPanel .passwordControl { position:relative; margin-top:8px; }
+  .loginPanel .passwordControl input { margin:0; padding-inline-end:60px; }
+  .loginPanel .passwordToggle {
+    position:absolute;
+    inset-inline-end:2px;
+    top:2px;
+    bottom:2px;
+    display:grid;
+    place-items:center;
+    width:48px;
+    min-height:44px;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:#b6ebf3;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .loginPanel .passwordToggle svg { pointer-events:none; }
+  .loginPanel :focus-visible { outline:2px solid #9be7f0; outline-offset:3px; }
+  .loginPanel .passwordToggle:focus-visible { outline-offset:-3px; }
+  .signInPanel input[aria-invalid=true] { border-color:#ffb4a9; }
+  .signInPanel .primaryButton {
+    min-height:52px;
+    margin:2px 0 0;
+    border:1px solid rgba(169,242,252,.55);
+    border-radius:10px;
+    background:linear-gradient(160deg,#65dbed,#22b8d5 55%,#13a1c4);
+    box-shadow:inset 0 1px rgba(239,254,255,.5),0 4px 16px rgba(0,146,179,.15);
+    color:#031e2f;
+    font:inherit;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .signInPanel .passwordHelp { margin:26px 0 0; padding-top:22px; border-top:1px solid rgba(155,220,238,.2); font-size:13px; line-height:1.65; color:#c0d0dc; }
+  .signInPanel .signInError { padding:12px 14px; margin:0 0 22px; border:1px solid #b56761; border-radius:10px; background:#382b37; color:#ffd1c9; font-size:14px; line-height:1.5; }
+  .loginPanel input { scroll-margin-block:80px; }
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  @media screen {
+    .authScreen .signInPanel { background:linear-gradient(145deg,rgba(53,91,114,.43),rgba(10,31,50,.64)); -webkit-backdrop-filter:blur(24px) saturate(125%); backdrop-filter:blur(24px) saturate(125%); }
+  }
+}
+@media screen and (hover:hover) and (pointer:fine) {
+  .loginPanel .passwordToggle:hover { background:rgba(128,219,233,.12); color:#e2fbff; }
+  .signInPanel .primaryButton:hover { filter:brightness(1.08); }
+}
+@media screen and (max-width:480px) {
+  .authScreen { padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+  .authScreen .signInPanel { padding:26px 24px; border-radius:18px; }
+  .signInLogo { width:196px; margin-bottom:24px; }
+  .signInPanel h1 { font-size:30px; }
+  .signInIdentity { margin-bottom:24px; }
+}
+@media screen and (prefers-reduced-transparency:reduce), screen and (prefers-contrast:more) {
+  .authScreen::before { display:none; }
+  .authScreen .signInPanel { background:#10293e; -webkit-backdrop-filter:none; backdrop-filter:none; }
+}
