@@ -20,6 +20,12 @@ Además, la entrega se detiene si la comprobación remota muestra otra identidad
 - Baseline remoto: las seis huellas de migración coinciden con el repositorio; `cryopm_app` no tiene superusuario, creación de bases/roles ni bypass de RLS. Dos PMs existentes antes de la migración.
 - Baseline HTTPS: login del piloto 200 con CSP, HSTS y caché privada; API de PMs sin sesión 401. Las dos webs del cliente responden 200.
 
+## Publicación estática en Hostinger
+
+La comprobación remota detectó que Hostinger sirve `public/design-study/index.html` directamente (200), aunque el proxy de Next.js lo bloquea en las pruebas locales. Son propuestas sintéticas, pero no deben publicarse en el piloto. `scripts/package-pilot.py` las excluye físicamente del ZIP, además de rechazar secretos y rutas generadas. Se verificará el 404 después de publicar.
+
+La auditoría completa presenta 12 avisos moderados en dependencias de desarrollo; todas esas versiones ya estaban en el piloto anterior. No aparecen en la auditoría de producción. No se exponen servidores de desarrollo ni se aplican actualizaciones incompatibles forzadas para silenciar esos avisos.
+
 ## Controles que se conservan
 
 Sesión HttpOnly/Secure y SameSite, comprobación de Origin, permisos actuales por administrador/creador/asignado, validación y límites de entrada, TLS verificado a Supabase y rol de aplicación limitado. La nueva migración es aditiva, transaccional y habilita RLS. Sus políticas son para el backend `cryopm_app`; no se añade una política de acceso público.
