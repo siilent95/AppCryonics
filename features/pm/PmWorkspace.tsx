@@ -27,11 +27,13 @@ function WorkspaceContent({ user }: { user: OfflineUser }) {
   const offline=useOffline();
   const [cancelTarget,setCancelTarget]=useState<{id:string|null;label:string;current?:boolean}|null>(null);
   const [handoverError,setHandoverError]=useState("");
+  const [handoverPending,setHandoverPending]=useState<number|null>(null);
+  const visibleHandoverError=handoverError&&handoverPending===offline.pending?handoverError:"";
   const [handingOver,setHandingOver]=useState(false);
   async function signOut() {
     setHandingOver(true);setHandoverError("");
     try { await workspace.flushLocal(); await offlineEngine.handover(); window.location.assign("/login"); }
-    catch(e){setHandoverError(e instanceof Error ? e.message : "Connect to synchronize before changing technician.");}
+    catch(e){setHandoverPending(offlineEngine.getState().pending);setHandoverError(e instanceof Error ? e.message : "Connect to synchronize before changing technician.");}
     finally{setHandingOver(false);}
   }
   const items: typeof navigation = user.role === "admin" ? [...navigation, { view: "users", label: "Users", icon: "Users" }] : navigation;
@@ -95,8 +97,8 @@ function WorkspaceContent({ user }: { user: OfflineUser }) {
       </header>
       <main id="workspace-main" ref={main} tabIndex={-1} className={`content ${workspaceView === "orders" ? "workOrderContent" : "managementContent"}`}>
         <OfflineStatus />
-        {(handoverError||workspace.saveError||workspace.deviceSaveError)&&<div className="workspaceFeedback">
-        {handoverError&&<p className="accountError" role="alert">{handoverError}</p>}
+        {(visibleHandoverError||workspace.saveError||workspace.deviceSaveError)&&<div className="workspaceFeedback">
+        {visibleHandoverError&&<p className="accountError" role="alert">{visibleHandoverError}</p>}
         {workspace.saveError&&<p className="accountError" role="alert">{workspace.saveError} <button type="button" className="ghostButton" onClick={()=>openWorkspaceView("reports")}>Review device drafts</button></p>}
         {workspace.deviceSaveError&&<p className="accountError" role="alert">{workspace.deviceSaveError}</p>}
         </div>}
