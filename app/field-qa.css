@@ -318,3 +318,16 @@
   .versionHistoryControls>.ghostButton { min-height:48px; }
   .analytics-toolbar>div>label:last-child { grid-column:1/-1; }
 }
+
+/* Installed mobile apps: a single safe-area owner, with the document scrolling
+   inside the workspace. The root cannot rubber-band the header under iOS chrome. */
+@media screen and (display-mode:standalone) and (max-width:1180px) {
+  html:has(.appShell),body:has(.appShell){height:100%;overflow:hidden;overscroll-behavior-y:none}
+  .appShell{height:100dvh;min-height:0;overflow:hidden}
+  .appShell>.sidebar{flex:none}
+  .appShell>.workspace{display:flex;flex-direction:column;flex:1;min-height:0;height:100%;overflow:hidden}
+  .appShell .topbar{position:relative;top:auto;flex:none;isolation:isolate;padding-top:calc(12px + env(safe-area-inset-top,0px));background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+  .appShell .topbar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:rgba(10,32,49,.48);-webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%)}
+  .appShell .content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scroll-padding-block:16px calc(112px + env(safe-area-inset-bottom))}
+  @media (prefers-reduced-transparency:reduce),(prefers-contrast:more){.appShell .topbar::before{background:#10293e;-webkit-backdrop-filter:none;backdrop-filter:none}}
+}

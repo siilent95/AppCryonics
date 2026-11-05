@@ -27,7 +27,7 @@ export function ReportsView({
   detailError,
   detailLoading,
   onExport,
-  onOpenReport,
+  onOpenReport,onCloseReport,
 }: {
   catalogModels?: import("@/features/equipment/types").CatalogModel[];
   isAdmin?: boolean;
@@ -42,6 +42,7 @@ export function ReportsView({
   detailError: string;
   detailLoading: boolean;
   onExport: (records: PmRecordSummary[]) => void;
+  onCloseReport: () => void;
   onOpenReport: (record: PmRecordSummary) => void;
 }) {
   const connection = useOffline();
@@ -74,6 +75,7 @@ export function ReportsView({
   }, [detail, detailLoading]);
   function openDetail(record: PmRecordSummary) { selectedRow.current = record.id; setDetailOpen(true); onOpenReport(record); }
   function backToReports() {
+    onCloseReport();
     setDetailOpen(false);
     requestAnimationFrame(() => {
       const row = selectedRow.current ? document.getElementById(`report-row-${selectedRow.current}`) : null;
@@ -102,7 +104,7 @@ export function ReportsView({
         <div className="reportHeroActions"><button className="primaryAction" disabled={newPmBusy} onClick={onNewPm} type="button">New PM</button><button className="ghostButton" disabled={busy || pagination.total === 0 || exporting} onClick={async () => { setExporting(true); setActionError(""); try { onExport(await reports.exportAll()); } catch (error) { setActionError(error instanceof Error ? error.message : "Unable to export reports."); } finally { setExporting(false); } }} type="button">{exporting ? "Exporting…" : "Export CSV"}</button></div>
       </section>
 
-      <div className="reportManagementBar"><div className="reportViewTabs" role="group" aria-label="Report collection"><button className="ghostButton" aria-pressed={!trash} type="button" onClick={() => { changeFilters({ view: "active", brand: "" }); setDetailOpen(false); setNotice(""); }}>Active reports</button><button className="ghostButton" aria-pressed={trash} disabled={!connection.online} type="button" onClick={() => { changeFilters({ view: "trash", brand: "" }); setDetailOpen(false); setNotice(""); }}>Trash</button></div><span>{trash ? `Recover deleted PMs for ${TRASH_RETENTION_DAYS} days. Then they are permanently deleted.` : `Trash keeps deleted PMs for ${TRASH_RETENTION_DAYS} days.`}</span></div>
+      <div className="reportManagementBar"><div className="reportViewTabs" role="group" aria-label="Report collection"><button className="ghostButton" aria-pressed={!trash} type="button" onClick={() => { changeFilters({ view: "active", brand: "" }); setDetailOpen(false); onCloseReport(); setNotice(""); }}>Active reports</button><button className="ghostButton" aria-pressed={trash} disabled={!connection.online} type="button" onClick={() => { changeFilters({ view: "trash", brand: "" }); setDetailOpen(false); onCloseReport(); setNotice(""); }}>Trash</button></div><span>{trash ? `Recover deleted PMs for ${TRASH_RETENTION_DAYS} days. Then they are permanently deleted.` : `Trash keeps deleted PMs for ${TRASH_RETENTION_DAYS} days.`}</span></div>
       {notice && <p className="reportNotice" role="status">{notice}</p>}
       {actionError && <p className="accountError" role="alert">{actionError}</p>}
       <div className="reportsGrid">

@@ -55,6 +55,19 @@ export class OfflineEngine {
   async drafts() { return this.user ? (await entries<DraftEntry>(this.user.id, "draft:")).filter(isDraft) : []; }
   async draft(id: string) { const d=this.user ? await readEntry<DraftEntry>(this.user.id, `draft:${id}`) : undefined; return isDraft(d) ? d : undefined; }
   async checkpoint() { return this.user ? readEntry<{ activeId: string | null }>(this.user.id, "workspace") : undefined; }
+  rememberReport(id: string | null) {
+    const identity=this.user;
+    return this.serial(async()=>{
+      if(!this.user||this.user!==identity||!this.state.ready||this.state.blocked)throw new Error("Device storage is not ready.");
+      if(id)await writeEntry(this.user.id,"report-return",{id,at:Date.now()});
+      else await deleteEntry(this.user.id,"report-return");
+    });
+  }
+  async reportReturn() {
+    if(!this.user)return undefined;
+    const saved=await readEntry<{id:string;at:number}>(this.user.id,"report-return");
+    return saved&&typeof saved.id==="string"&&saved.id.length<=100&&Number.isFinite(saved.at)&&Date.now()-saved.at>=0&&Date.now()-saved.at<12*60*60*1000?saved:undefined;
+  }
   async setActive(id: string | null) { if (this.user) await writeEntry(this.user.id, "workspace", { activeId:id }); }
   async refreshCounts() { const drafts = await this.drafts(); this.publish({ pending:drafts.filter(d=>d.sequence>d.syncedSequence).length }); }
   private serial<T>(fn: () => Promise<T>): Promise<T> { const job = this.writes.then(fn); this.writes=job.catch(()=>{}); return job; }

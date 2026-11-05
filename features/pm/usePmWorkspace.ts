@@ -79,6 +79,7 @@ export function usePmWorkspace(user: OfflineUser) {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("overview");
   const [recordsRefresh, setRecordsRefresh] = useState(0);
   const [reportDetail, setReportDetail] = useState<ReportDetail | null>(null);
+  const reportRequest=useRef(0);
   const [reportDetailLoading, setReportDetailLoading] = useState(false);
   const [reportDetailError, setReportDetailError] = useState("");
 
@@ -278,6 +279,8 @@ export function usePmWorkspace(user: OfflineUser) {
         const d=await offlineEngine.draft(checkpoint.activeId);
         if(d&&alive){applyLocal(d);try{await offlineEngine.resume(d.id);}catch(e){setLocalWritable(false);setDeviceSaveError(e instanceof Error?e.message:"This PM is open in another tab.");}}
       }
+      const returning=await offlineEngine.reportReturn();
+      if(returning&&alive){setWorkspaceView("reports");await openReport({id:returning.id});}
       if(alive)setLocalHydrated(true);
     }).catch(e=>{if(alive){setDeviceSaveError(`Recovery failed: ${e.message}. Do not overwrite or clear device storage.`);setLocalWritable(false);}});
     const unsubscribe=offlineEngine.subscribe(()=>{
@@ -292,7 +295,7 @@ export function usePmWorkspace(user: OfflineUser) {
         if(d.status==="completed"){setCompletionStatus("completed");setSignatureCapturedAt(d.completedAt||null);}
       }).catch(e=>setDeviceSaveError(e.message));
     });
-    return()=>{alive=false;unsubscribe();};
+    return()=>{alive=false;reportRequest.current++;unsubscribe();};
   // Recovery occurs once, before enabling writes; later acknowledgements update metadata only.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[user.id]);
@@ -322,6 +325,7 @@ export function usePmWorkspace(user: OfflineUser) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[localHydrated,completionStatus,localWritable]);
   async function resumeLocal(id:string){
+    await offlineEngine.rememberReport(null);
     try{if(localWritable)await flushLocal();const d=await offlineEngine.resume(id);applyLocal(d);setLocalWritable(true);}
     catch(e){setDeviceSaveError(e instanceof Error?e.message:"Unable to recover the local PM.");}
   }
@@ -459,32 +463,41 @@ export function usePmWorkspace(user: OfflineUser) {
   function refreshRecords() { setRecordsRefresh(value => value + 1); }
 
   function openWorkspaceView(view: WorkspaceView) {
+    if(view!=="reports"){reportRequest.current++;setReportDetailLoading(false);void offlineEngine.rememberReport(null).catch(()=>{});}
     if(view==="orders")localWritesPaused.current=false;
     setWorkspaceView(view);
     setMobileMenu(false);
     if (view !== "orders") void refreshRecords();
   }
 
+  function closeReport() {
+    reportRequest.current++;setReportDetail(null);setReportDetailLoading(false);setReportDetailError("");
+    void offlineEngine.rememberReport(null).catch(()=>{});
+  }
   async function openReport(record: Pick<PmRecordSummary, "id">, resume = false) {
+    const ticket=++reportRequest.current;
     setReportDetailLoading(true);
     setReportDetailError("");
     setReportDetail(null);
     try {
       const local=await readLocal(record.id.replace(/^local:/,""));
-      if(local&&(local.sequence>local.syncedSequence||record.id.startsWith("local:"))){setReportDetail(localDetail(local));if(resume)await resumeLocal(local.id);return;}
+      if(ticket!==reportRequest.current)return;
+      if(local&&(local.sequence>local.syncedSequence||record.id.startsWith("local:"))){setReportDetail(localDetail(local));if(resume)await resumeLocal(local.id);else await offlineEngine.rememberReport(`local:${local.id}`);return;}
       const result=await offlineJson<ReportDetail>(`/api/pm-records/${local?.server?.id || record.id}`);
+      if(ticket!==reportRequest.current)return;
       setReportDetail(result);
-      if (resume) await resumeRecord(result);
+      if(resume)await resumeRecord(result);else await offlineEngine.rememberReport(result.record.id);
     } catch (error) {
-      setReportDetailError(error instanceof Error ? error.message : "Unable to retrieve the PM report.");
+      if(ticket===reportRequest.current)setReportDetailError(error instanceof Error ? error.message : "Unable to retrieve the PM report.");
     } finally {
-      setReportDetailLoading(false);
+      if(ticket===reportRequest.current)setReportDetailLoading(false);
     }
   }
 
   async function resumeRecord(detail: ReportDetail) {
     try {
     const r=detail.record;if(!r.canEdit)return;
+    await offlineEngine.rememberReport(null);
     const existing=await readLocal(r.id.replace(/^local:/,""));
     if(existing && (r.id.startsWith("local:") || existing.sequence>existing.syncedSequence)){await resumeLocal(existing.id);return;}
     await flushLocal();
@@ -730,7 +743,7 @@ export function usePmWorkspace(user: OfflineUser) {
     recordsRefresh,
     reportsChanged,
     openWorkspaceView,
-    openReport,
+    openReport,closeReport,
     exportReports,
     resumeRecord,
     saveDraft,
