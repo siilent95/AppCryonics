@@ -8,7 +8,7 @@ import { ReportPreview } from "../pm/components/ReportPreview";
 import { entries } from "./vault";
 import { localDetail } from "./reports";
 
-export function LocalDraftList({onResume,onPreview}:{onResume:(id:string)=>void;onPreview:(id:string)=>void}) {
+export function LocalDraftList({onResume,onPreview,onCancel}:{onResume:(id:string)=>void;onPreview:(id:string)=>void;onCancel:(draft:LocalDraft)=>void}) {
   const state=useOffline();
   const [drafts,setDrafts]=useState<LocalDraft[]>([]);
   const [recoveries,setRecoveries]=useState<LocalDraft[]>([]),[recovery,setRecovery]=useState<LocalDraft|null>(null);
@@ -34,11 +34,12 @@ export function LocalDraftList({onResume,onPreview}:{onResume:(id:string)=>void;
     catch(e){setError(e instanceof Error?e.message:"Unable to resolve the conflict.");}finally{setBusy(false);}
   }
   if(!drafts.length&&!recoveries.length&&!error&&!review)return null;
-  return <section className="deviceDrafts dataPanel" aria-label="PMs stored on this tablet"><h2>Device drafts</h2><p>These PMs have device changes awaiting server confirmation. Keep this technician signed in until synchronization finishes.</p>
+  return <section className="deviceDrafts dataPanel" aria-label="PMs stored on this tablet"><h2>Device drafts</h2><p>These PMs have device changes awaiting server confirmation. Synchronize them before changing technician, or cancel a new PM you no longer need.</p>
     {error&&<p role="alert">{error}</p>}
     <div className="deviceDraftList">{drafts.map(d=><article key={d.id}><div><strong>{d.server?.recordNumber||`LOCAL-${d.id.slice(0,8).toUpperCase()}`}</strong><span>{d.snapshot.catalogBrandName} · {d.snapshot.body.model} · {d.snapshot.body.freezerSerial||"Serial pending"}</span><small>{d.status==="blocked"?"Needs attention":d.closing?"Completion pending confirmation":d.formal?"Pending synchronization":"Saved on this tablet"} · {new Date(d.updatedAt).toLocaleString()}</small>{d.error&&<p role="alert">{d.error}</p>}</div><div className="offlineButtons">
       <button type="button" className="ghostButton" disabled={busy} onClick={()=>onPreview(d.id)}>Preview</button>
       {!d.closing&&<button type="button" className="ghostButton" disabled={busy} onClick={()=>onResume(d.id)}>Continue</button>}
+      {!d.server&&!d.operation&&<button type="button" className="ghostButton cancelPmButton" disabled={busy} onClick={()=>onCancel(d)}>Cancel PM</button>}
       {d.errorCode===409&&<button type="button" className="ghostButton" disabled={!state.online||busy} onClick={()=>void compare(d)}>Review versions</button>}
       {d.status==="blocked"&&![403,404,409].includes(d.errorCode||0)&&<button type="button" className="ghostButton" disabled={busy} onClick={()=>{setBusy(true);offlineEngine.reopen(d.id).then(()=>onResume(d.id)).catch(e=>setError(e.message)).finally(()=>setBusy(false));}}>Return to editing</button>}
     </div></article>)}</div>

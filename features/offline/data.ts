@@ -1,10 +1,10 @@
 import { offlineEngine } from "./engine";
-import { entries, readEntry, writeEntry } from "./vault";
+import { readEntry, writeEntry } from "./vault";
 import { localDetail, filterReports } from "./reports";
 import { offlineAnalytics } from "./analytics";
 import type { PmRecordSummary, ReportDetail } from "../pm/types";
 import type { EquipmentCatalog } from "../equipment/types";
-import type { LocalDraft, Preparation } from "./types";
+import type { Preparation } from "./types";
 
 export class OfflineRequestError extends Error { constructor(message:string, readonly status:number) { super(message); } }
 const parse=(url:string)=>new URL(url,"https://cryopm.local");
@@ -102,7 +102,7 @@ async function prepareShell() {
   const cache=await caches.open("cryopm-shell-v1"); const response=await fetch("/offline",{cache:"reload",signal:AbortSignal.timeout(20000)});
   if(!response.ok||response.redirected)throw new Error("Offline interface could not be downloaded.");
   const html=await response.clone().text(); if(!html.includes("cryopm-offline-entry"))throw new Error("Invalid offline interface.");
-  const urls=new Set<string>(["/brand/logo-light.png","/brand/logo-primary.png","/brand/icon.png","/brand/pwa-192.png","/brand/pwa-512.png","/brand/apple-touch-icon.png"]);
+  const urls=new Set<string>(["/manifest.webmanifest","/apple-touch-icon.png","/brand/logo-light.png","/brand/logo-primary.png","/brand/icon.png","/brand/cryogenics-app-192.png","/brand/cryogenics-app-512.png","/brand/cryogenics-app-180.png"]);
   const doc=new DOMParser().parseFromString(html,"text/html");
   doc.querySelectorAll("script[src],link[href]").forEach(el=>{const p=el.getAttribute("src")||el.getAttribute("href");if(p?.startsWith("/_next/static/")||p?.startsWith("/brand/"))urls.add(p);});
   // Save the shell only after its dependencies are verified; a failed refresh keeps the old shell.
@@ -182,4 +182,4 @@ export async function prepareDevice(includeDocuments=false) {
   } catch(error) { const message=error instanceof Error?error.message:"Device preparation failed.";prepared.complete=false;errors.push(message);await writeEntry(owner,"prepared",prepared).catch(()=>{});offlineEngine.publish({prepared,error:message,progress:"Preparation incomplete. Existing device work was preserved."}); }
   finally {preparing=false;offlineEngine.publish({preparing:false});}
 }
-export async function readLocal(id:string) { const drafts=await entries<LocalDraft>(offlineEngine.user!.id,"draft:");return drafts.find(d=>d.id===id||d.server?.id===id); }
+export async function readLocal(id:string) { const drafts=await offlineEngine.drafts();return drafts.find(d=>d.id===id||d.server?.id===id); }

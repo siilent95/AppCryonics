@@ -10,3 +10,30 @@
 .deviceDraftList strong,.deviceDraftList span,.deviceDraftList small{display:block;overflow-wrap:anywhere;margin-bottom:6px}.deviceDraftList small{color:#bed0df}
 .conflictReview{border-top:1px solid rgba(146,208,226,.24);margin-top:24px;padding-top:20px}.conflictCopies{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.conflictCopies>div{min-width:0}.conflictCopies .reportPreview{max-height:50vh;overflow:auto;font-size:14px}.localPreviewNotice{background:#e2f1f4;color:#18394a;padding:16px;font-weight:500}
 @media(max-width:700px){.offlineStatus,.deviceDrafts{padding:12px;margin-bottom:16px}.offlineButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.offlineButtons button{width:100%;padding:12px 8px}.conflictCopies{grid-template-columns:minmax(0,1fr)}}
+
+/* Feedback and offline-only views share the same breathing room as connected views. */
+.workspaceFeedback{display:grid;gap:12px;margin-block:0 24px;min-width:0}
+.workspaceFeedback>.accountError{margin:0;padding:16px;line-height:1.6;overflow-wrap:anywhere}
+.workspaceFeedback .ghostButton{margin-block-start:12px;min-height:44px;white-space:normal}
+.offlineUnavailable{display:flex;align-items:flex-start;gap:20px;padding:28px;border:1px solid var(--glass-line);border-radius:16px;min-width:0}
+.offlineUnavailable>div:last-child{min-width:0}
+.offlineUnavailableIcon{display:grid;place-items:center;flex:none;width:48px;height:48px;border:1px solid var(--glass-line);border-radius:14px;color:#9de6ef;background:rgba(103,199,220,.08)}
+.offlineUnavailableIcon svg{width:24px;height:24px}
+.offlineUnavailable h1{margin:6px 0 12px;font-size:clamp(24px,4vw,32px);line-height:1.2}
+.offlineUnavailable p{margin:0;line-height:1.6;overflow-wrap:anywhere}
+.offlineUnavailable .offlineUnavailableNote{margin-top:12px;color:var(--muted);font-size:.9rem}
+.pmDraftTools{display:flex;align-items:center;gap:16px;margin-block:16px}
+.pmDraftTools .pmProgressHelp{flex:1;min-width:0;margin:0}
+.pmDraftTools>.cancelPmButton{flex:none;min-height:44px;white-space:nowrap}
+.cancelPmButton{color:#ffb4a9}
+@media(max-width:700px){
+ .workspaceFeedback{margin-bottom:20px}
+ .offlineUnavailable{gap:16px;padding:20px;flex-direction:column}
+ .offlineStatusLine{gap:4px 12px;align-items:flex-start}
+ .offlineStatusLine>span{flex:1 1 160px;line-height:1.5;padding-block:10px;overflow-wrap:anywhere}
+ .offlineStatusLine>button{flex:none}
+ .pmDraftTools{flex-wrap:wrap;gap:12px}
+ .pmDraftTools .pmProgressHelp{flex-basis:100%}
+ .pmDraftTools>.cancelPmButton{margin-inline-start:auto}
+ .offlineButtons>.cancelPmButton{grid-column:1/-1}
+}

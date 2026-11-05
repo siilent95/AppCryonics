@@ -12,7 +12,7 @@ import { SignaturePad } from "@/features/pm/components/SignaturePad";
 
 
 import type { usePmWorkspace } from "./usePmWorkspace";
-export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof usePmWorkspace> }) {
+export function MaintenanceForm({ workspace, onCancel }: { workspace: ReturnType<typeof usePmWorkspace>; onCancel: () => void }) {
   const {
     isCorrection,
     brand,
@@ -219,7 +219,7 @@ return (
             </div>
           </section>
 
-          <p className="pmProgressHelp">{workspace.draftRecordNumber ? `${workspace.draftRecordNumber} · ` : ""}Changes are saved on this tablet automatically. Save draft to synchronize with the server.</p>
+          <div className="pmDraftTools"><p className="pmProgressHelp">{workspace.draftRecordNumber ? `${workspace.draftRecordNumber} · ` : ""}Changes are saved on this tablet automatically. Save draft to synchronize with the server.</p>{workspace.canCancelPm&&<button type="button" className="ghostButton cancelPmButton" onClick={onCancel}>Cancel PM</button>}</div>
           {saveStatus === "error" && <p className="accountError" role="alert">{saveError}</p>}
           {catalogState.status !== "loaded" && <div className="pmCatalogNotice" role="status">{catalogState.status === "error" ? catalogState.error : "Loading equipment catalog…"}<button className="ghostButton" type="button" onClick={() => void catalogState.refresh()}>Reload catalog</button></div>}
           <section className="equipmentIdentification" aria-labelledby="equipment-identification-title">

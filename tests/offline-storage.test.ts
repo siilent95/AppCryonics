@@ -122,3 +122,83 @@ test('protected offline storage, retries, conflicts, recovery and technician han
   });
 
 });
+
+test('cancelling new PMs is local, isolated and safe against synchronization races',async t=>{
+  const actor={...user,id:'cancel-qa'};
+  let posts=0,logout=0;
+  const transport:typeof fetch=async (url,init)=>{
+    if(url==='/api/offline/session')return reply({user:actor});
+    if(url==='/api/auth/logout'){logout++;return reply({ok:true});}
+    posts++;
+    const op=JSON.parse(init!.body as string) as SyncOperation;
+    return reply({localId:op.localId,sequence:op.sequence,record:{id:'saved-qa',recordNumber:'QA',revision:1}});
+  };
+  const engine=new OfflineEngine(transport);await engine.activate(actor,true);
+  await t.test('offline cancellation removes visit data and prevents later writes or reload resurrection',async()=>{
+    const id=crypto.randomUUID();await engine.persist(id,snapshot());await engine.cancel(id);
+    assert.equal(engine.getState().pending,0);assert.equal(await engine.draft(id),undefined);
+    assert.deepEqual(await readEntry(actor.id,`draft:${id}`),{id,cancelled:true});
+    assert.equal((await engine.checkpoint())?.activeId,null);
+    await assert.rejects(engine.persist(id,snapshot()),/cancelled/);
+    const reloaded=new OfflineEngine(transport);await reloaded.activate(actor,true);
+    assert.equal((await reloaded.drafts()).length,0);await assert.rejects(reloaded.resume(id),/not found/);
+    await assert.rejects(reloaded.persist(id,snapshot()),/cancelled/);
+    await engine.retry(id);assert.equal(posts,0);
+  });
+  await t.test('cancelling a queued but unsent draft does not upload it or disturb the current PM',async()=>{
+    const cancelled=crypto.randomUUID(),current=crypto.randomUUID();
+    await engine.persist(cancelled,snapshot(),{formal:true});await engine.persist(current,snapshot());
+    await engine.cancel(cancelled);await engine.sync();
+    assert.equal(posts,0);assert.equal((await engine.checkpoint())?.activeId,current);
+    assert.equal((await engine.draft(current))?.snapshot.body.freezerSerial,'QA-OFFLINE');
+    await engine.cancel(current);
+  });
+  await t.test('another tab cannot discard a PM with a live editing lease',async()=>{
+    const id=crypto.randomUUID();await engine.persist(id,snapshot());
+    const other=new OfflineEngine(transport);await other.activate(actor);
+    await assert.rejects(other.cancel(id),/another tab/);assert.ok(await engine.draft(id));await engine.cancel(id);
+  });
+  await t.test('cancellation before operation selection commits prevents any upload',async()=>{
+    const id=crypto.randomUUID();await engine.persist(id,snapshot(),{formal:true});
+    const encrypt=crypto.subtle.encrypt;let entered!:()=>void,release!:()=>void;
+    const started=new Promise<void>(resolve=>entered=resolve),gate=new Promise<void>(resolve=>release=resolve);
+    crypto.subtle.encrypt=async function(...args:Parameters<SubtleCrypto['encrypt']>){entered();await gate;return encrypt.apply(this,args);};
+    const sending=engine.sync();
+    try{await started;crypto.subtle.encrypt=encrypt;await engine.cancel(id);release();await sending;assert.equal(posts,0);assert.equal(await engine.draft(id),undefined);}
+    finally{crypto.subtle.encrypt=encrypt;release();}
+  });
+  await t.test('an operation selected before cancellation remains intact even if its response is lost',async()=>{
+    let entered!:()=>void,release!:()=>void;
+    const started=new Promise<void>(resolve=>entered=resolve),gate=new Promise<void>(resolve=>release=resolve);
+    const sender=new OfflineEngine(async(url)=>{
+      if(url==='/api/offline/session')return reply({user:actor});
+      entered();await gate;throw new TypeError('Synthetic acknowledgement lost');
+    });
+    await sender.activate(actor);const id=crypto.randomUUID();await sender.persist(id,snapshot(),{formal:true});
+    const sending=sender.sync();await started;
+    try{await assert.rejects(sender.cancel(id),/already been saved or sent/);assert.ok((await sender.draft(id))?.operation);}
+    finally{release();await sending;}
+    await assert.rejects(sender.cancel(id),/already been saved or sent/);
+    await sender.release(id);await engine.resume(id);await engine.sync();
+    assert.equal(posts,1);await assert.rejects(engine.cancel(id),/already been saved or sent/);
+    assert.equal((await engine.draft(id))?.server?.id,'saved-qa');
+  });
+  await t.test('cancellation wins against an encrypting late save in another tab',async()=>{
+    const lockDescriptor=Object.getOwnPropertyDescriptor(navigator,'locks');
+    Object.defineProperty(navigator,'locks',{value:undefined,configurable:true});
+    const id=crypto.randomUUID();await engine.persist(id,snapshot());await engine.release(id);
+    const lateWriter=new OfflineEngine(transport);await lateWriter.activate(actor);
+    const encrypt=crypto.subtle.encrypt;let entered!:()=>void,release!:()=>void;
+    const started=new Promise<void>(resolve=>entered=resolve),gate=new Promise<void>(resolve=>release=resolve);
+    crypto.subtle.encrypt=async function(...args:Parameters<SubtleCrypto['encrypt']>){entered();await gate;return encrypt.apply(this,args);};
+    const late=lateWriter.persist(id,snapshot());const rejected=assert.rejects(late,/cancelled/);
+    try{await started;crypto.subtle.encrypt=encrypt;await engine.cancel(id);release();await rejected;assert.equal(await engine.draft(id),undefined);}
+    finally{crypto.subtle.encrypt=encrypt;release();if(lockDescriptor)Object.defineProperty(navigator,'locks',lockDescriptor);else Reflect.deleteProperty(navigator,'locks');}
+  });
+  await t.test('a cancelled PM no longer blocks confirmed online handover',async()=>{
+    const id=crypto.randomUUID();await engine.persist(id,snapshot());
+    await assert.rejects(engine.handover(),/Synchronize/);assert.equal(logout,0);
+    await engine.cancel(id);await engine.handover();assert.equal(logout,1);
+    assert.equal(await metadata('active'),undefined);assert.equal((await entries(actor.id,'draft:')).length,0);
+  });
+});

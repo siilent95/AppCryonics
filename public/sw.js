@@ -43,7 +43,7 @@ self.addEventListener("fetch",event=>{
       return stored;
     })());return;
   }
-  if(url.pathname.startsWith("/_next/static/")||url.pathname.startsWith("/brand/")||url.pathname.startsWith("/freezers/")||url.pathname.startsWith("/api/pdfjs/")) {
+  if(url.pathname==="/manifest.webmanifest"||url.pathname==="/apple-touch-icon.png"||url.pathname.startsWith("/_next/static/")||url.pathname.startsWith("/brand/")||url.pathname.startsWith("/freezers/")||url.pathname.startsWith("/api/pdfjs/")) {
     event.respondWith((async()=>{
       const cache=await caches.open(SHELL),hit=await cache.match(event.request);if(hit)return hit;
       const r=await fetch(event.request);if(r.ok&&!r.redirected)await cache.put(event.request,r.clone());return r;

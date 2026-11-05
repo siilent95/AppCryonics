@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { OfflineBoundary } from "../offline/OfflineBoundary";
 import { OfflineStatus } from "../offline/OfflineStatus";
+import { CancelPmDialog } from "../offline/CancelPmDialog";
 import { LocalDraftList } from "../offline/LocalDraftList";
 import { offlineEngine } from "../offline/engine";
 import { useOffline } from "../offline/useOffline";
@@ -24,6 +25,7 @@ function WorkspaceBrand({ compact = false, user }: { compact?: boolean; user?: {
 export function PmWorkspace({user,offlineStart=false}:{user:OfflineUser;offlineStart?:boolean}) { return <OfflineBoundary user={user} offlineStart={offlineStart}><WorkspaceContent user={user} /></OfflineBoundary>; }
 function WorkspaceContent({ user }: { user: OfflineUser }) {
   const offline=useOffline();
+  const [cancelTarget,setCancelTarget]=useState<{id:string|null;label:string;current?:boolean}|null>(null);
   const [handoverError,setHandoverError]=useState("");
   const [handingOver,setHandingOver]=useState(false);
   async function signOut() {
@@ -93,16 +95,19 @@ function WorkspaceContent({ user }: { user: OfflineUser }) {
       </header>
       <main id="workspace-main" ref={main} tabIndex={-1} className={`content ${workspaceView === "orders" ? "workOrderContent" : "managementContent"}`}>
         <OfflineStatus />
+        {(handoverError||workspace.saveError||workspace.deviceSaveError)&&<div className="workspaceFeedback">
         {handoverError&&<p className="accountError" role="alert">{handoverError}</p>}
         {workspace.saveError&&<p className="accountError" role="alert">{workspace.saveError} <button type="button" className="ghostButton" onClick={()=>openWorkspaceView("reports")}>Review device drafts</button></p>}
         {workspace.deviceSaveError&&<p className="accountError" role="alert">{workspace.deviceSaveError}</p>}
-        {workspaceView === "reports"&&<LocalDraftList onResume={workspace.resumeLocal} onPreview={workspace.previewLocal} />}
+        </div>}
+        {workspaceView === "reports"&&<LocalDraftList onResume={workspace.resumeLocal} onPreview={workspace.previewLocal} onCancel={d=>setCancelTarget({id:d.id,label:`${d.snapshot.catalogBrandName} · ${d.snapshot.body.model}`})} />}
         {workspaceView === "overview" && <OverviewView models={workspace.catalogState.catalog.models} brands={workspace.catalogState.catalog.brands} scopeLabel={user.role === "admin" ? "All technicians" : "Created by or assigned to you"} refresh={analyticsRefresh + offline.acknowledgements} onWorkspace={() => openWorkspaceView("orders")} onOpenRecord={record => { openWorkspaceView("reports"); void openReport(record); }} />}
         {workspaceView === "equipment" && <EquipmentView catalogState={workspace.catalogState} isAdmin={user.role === "admin" && offline.online} onUseModel={workspace.useCatalogModel} />}
         {workspaceView === "reports" && <ReportsView refreshKey={analyticsRefresh + workspace.recordsRefresh} onReportsChanged={(ids, deleted) => { workspace.reportsChanged(ids, deleted); setAnalyticsRefresh(value => value + 1); }} onNewPm={() => void workspace.closeCurrentPm("orders")} newPmBusy={workspace.closingPm || saveStatus === "saving"} catalogModels={workspace.catalogState.catalog.models} isAdmin={user.role === "admin" && offline.online} onAssigned={() => { if (reportDetail) void openReport(reportDetail.record); void refreshRecords(); setAnalyticsRefresh(v => v + 1); }} onResume={record => void openReport(record, true)} onCorrectionCreated={async id => { await openReport({ id }, true); await refreshRecords(); setAnalyticsRefresh(v => v + 1); }} onContinue={record => workspace.resumeRecord(record)} detail={reportDetail} detailError={reportDetailError} detailLoading={reportDetailLoading} onExport={exportReports} onOpenReport={record => void openReport(record)} />}
-        {workspaceView === "users" && user.role === "admin" && (offline.online ? <UsersView /> : <section className="dataPanel"><h1>Users</h1><p>Connect to manage users, invitations and permissions. No account changes are queued offline.</p></section>)}
-        {workspaceView === "orders" && <MaintenanceForm workspace={workspace} />}
+        {workspaceView === "users" && user.role === "admin" && (offline.online ? <UsersView /> : <section className="dataPanel offlineUnavailable" aria-labelledby="offline-users-title"><div className="offlineUnavailableIcon" aria-hidden="true"><NavIcon label="Users" /></div><div><p className="eyebrow">Connection required</p><h1 id="offline-users-title">Users</h1><p>Connect to manage users, invitations and permissions.</p><p className="offlineUnavailableNote">Account changes are available online only.</p></div></section>)}
+        {workspaceView === "orders" && <MaintenanceForm workspace={workspace} onCancel={()=>setCancelTarget({id:workspace.localDraftId,current:true,label:`${workspace.catalogBrandName} · ${workspace.model}`})} />}
       </main>
     </section>
+    {cancelTarget&&<CancelPmDialog label={cancelTarget.label} onConfirm={async()=>{await workspace.cancelLocalPm(cancelTarget.current?workspace.localDraftId:cancelTarget.id);setHandoverError("");}} onClose={()=>setCancelTarget(null)} />}
   </div>;
 }

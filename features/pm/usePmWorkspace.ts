@@ -22,6 +22,8 @@ export function usePmWorkspace(user: OfflineUser) {
   const [deviceSaving,setDeviceSaving]=useState(false);
   const [deviceSaveError,setDeviceSaveError]=useState("");
   const [localWritable,setLocalWritable]=useState(true);
+  const [canCancelPm,setCanCancelPm]=useState(true);
+  const localWritesPaused=useRef(false);
   const localIdRef=useRef<string|null>(null);
   const catalogModelIdRef=useRef<string|undefined>(undefined);
   const localTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -251,6 +253,7 @@ export function usePmWorkspace(user: OfflineUser) {
   const serializedSnapshot=JSON.stringify(snapshot);
 
   function applyLocal(d:LocalDraft) {
+    localWritesPaused.current=false;setCanCancelPm(!d.server&&!d.operation);
     const s=d.snapshot,b=s.body,m=b.payload.measurements||{};
     catalogModelIdRef.current=b.catalogModelId;
     localIdRef.current=d.id;setLocalDraftId(d.id);
@@ -282,6 +285,7 @@ export function usePmWorkspace(user: OfflineUser) {
       offlineEngine.draft(id).then(d=>{
         if(!alive||localIdRef.current!==id)return;
         if(!d){clearCurrentPm();return;}
+        setCanCancelPm(!d.server&&!d.operation);
         if(d.server){setDraftId(d.server.id);setDraftRecordNumber(d.server.recordNumber);}
         setSaveError(d.error);
         setSaveStatus(d.status==="blocked"?"error":d.syncedSequence===d.sequence?"saved":"idle");
@@ -294,6 +298,7 @@ export function usePmWorkspace(user: OfflineUser) {
   },[user.id]);
   async function flushLocal() {
     if(localTimer.current){clearTimeout(localTimer.current);localTimer.current=null;}
+    if(localWritesPaused.current)return;
     if(!localHydrated||!localWritable)throw new Error(deviceSaveError||"Device recovery is not ready.");
     if(completionStatus==="queued"||completionStatus==="completed"){await offlineEngine.flush();return;}
     if(!localIdRef.current&&!hasWork(snapshotRef.current))return;
@@ -304,13 +309,13 @@ export function usePmWorkspace(user: OfflineUser) {
     finally{setDeviceSaving(false);}
   }
   useEffect(()=>{
-    if(!localHydrated||!localWritable||completionStatus==="queued"||completionStatus==="completed")return;
+    if(localWritesPaused.current||!localHydrated||!localWritable||completionStatus==="queued"||completionStatus==="completed")return;
     if(!localIdRef.current&&!hasWork(snapshotRef.current))return;
     localTimer.current=setTimeout(()=>{localTimer.current=null;void flushLocal().catch(()=>{});},0);
     return()=>{if(localTimer.current)clearTimeout(localTimer.current);};
   // Snapshot serialization is deliberate: no render-created object can restart recovery.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[serializedSnapshot,localHydrated,localWritable,catalogState.status]);
+  },[serializedSnapshot,localHydrated,localWritable,catalogState.status,workspaceView]);
   useEffect(()=>{
     const leave=()=>{void flushLocal().catch(()=>{});};window.addEventListener("pagehide",leave);return()=>window.removeEventListener("pagehide",leave);
   // pagehide uses the current rendered snapshot; it must not reinstall on every keystroke.
@@ -454,6 +459,7 @@ export function usePmWorkspace(user: OfflineUser) {
   function refreshRecords() { setRecordsRefresh(value => value + 1); }
 
   function openWorkspaceView(view: WorkspaceView) {
+    if(view==="orders")localWritesPaused.current=false;
     setWorkspaceView(view);
     setMobileMenu(false);
     if (view !== "orders") void refreshRecords();
@@ -540,6 +546,7 @@ export function usePmWorkspace(user: OfflineUser) {
 
   function clearCurrentPm(nextModel?: CatalogModel) {
       if(localTimer.current)clearTimeout(localTimer.current);
+      setCanCancelPm(true);setDeviceSaveError("");
       localIdRef.current=null;catalogModelIdRef.current=undefined;setLocalDraftId(null);
       const entry = nextModel || catalogState.catalog.models.find(item => item.brandId === "taylor" && item.model === "3K" && item.active) || catalogState.catalog.models.find(item => item.active && catalogState.catalog.brands.some(b => b.id === item.brandId && b.pmTemplate));
       const nextBrand = catalogState.catalog.brands.find(item => item.id === entry?.brandId);
@@ -547,6 +554,18 @@ export function usePmWorkspace(user: OfflineUser) {
       setFacility(""); setLabName(""); setClientOrganization(""); setPerformedOn(new Date().toLocaleDateString("sv-SE")); setFirmwareVersion(""); setFreezerSerial(""); setControllerSerial(""); setLocation("");
       resetInspection(); setDraftId(null); setDraftRecordNumber(null);  setCorrectsRecordId(null); setCorrectionReason("");
       setSaveStatus("idle"); setSaveError("");
+  }
+
+  async function cancelLocalPm(id: string | null) {
+    const current=id===localIdRef.current;
+    if(current){localWritesPaused.current=true;setClosingPm(true);if(localTimer.current)clearTimeout(localTimer.current);}
+    try {
+      if(id)await offlineEngine.cancel(id);
+      else await offlineEngine.flush();
+      if(current){clearCurrentPm();setReportDetail(null);openWorkspaceView("reports");}
+      else if(reportDetail?.record.id===`local:${id}`)setReportDetail(null);
+    } catch(error) { if(current)localWritesPaused.current=false; throw error; }
+    finally { if(current)setClosingPm(false); }
   }
 
   function reportsChanged(ids: string[], deleted: boolean) {
@@ -596,12 +615,12 @@ export function usePmWorkspace(user: OfflineUser) {
 
 
  return {
-    localDraftId,localHydrated,localWritable,deviceSaving,deviceSaveError,flushLocal,resumeLocal,previewLocal,
+    canCancelPm,cancelLocalPm,localDraftId,localHydrated,localWritable,deviceSaving,deviceSaveError,flushLocal,resumeLocal,previewLocal,
     isCorrection: !!correctsRecordId,
     correctionReason,
     closingPm,
     closeCurrentPm,
-    catalogBrandId,
+    catalogBrandId,catalogBrandName,
     brand,
     family,
     model,
