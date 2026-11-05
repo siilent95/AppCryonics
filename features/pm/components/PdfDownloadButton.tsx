@@ -17,5 +17,5 @@ export function PdfDownloadButton({ id, completed, requiresSignatures = true }: 
     } catch (error) { setError(error instanceof Error ? error.message : "Unable to download the PDF."); }
     finally { setBusy(false); }
   }
-  return <div className="pdfDownload"><button type="button" disabled={!completed || busy} onClick={() => void download()}>{busy ? "Preparing PDF…" : "Download PDF"}</button>{!completed && <small>{requiresSignatures ? "Available after completion and signatures." : "Available after finalizing the correction."}</small>}{error && <small role="alert">{error}</small>}</div>;
+  return <div className="pdfDownload"><button className="primaryAction" type="button" disabled={!completed || busy} onClick={() => void download()}>{busy ? "Preparing PDF…" : "Download PDF"}</button>{!completed && <small>{requiresSignatures ? "Available after completion and signatures." : "Available after finalizing the correction."}</small>}{error && <small role="alert">{error}</small>}</div>;
 }

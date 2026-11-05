@@ -1,4 +1,5 @@
 "use client";
+import { NativeDateInput } from "./NativeDateInput";
 import type { CatalogBrand } from "@/features/equipment/types";
 import { useState } from "react";
 import type { AnalyticsData, AnalyticsFilters, AnalyticsRecord, Drill } from "../analytics/types";
@@ -21,7 +22,7 @@ export function OverviewView({ models = [], brands = [], scopeLabel = "Your acco
     <section className="analytics-toolbar" aria-label="Dashboard filters"><div>
       <label>Period<select value={filters.days} onChange={event => setFilters({ ...filters, days: Number(event.target.value) as AnalyticsFilters["days"] })}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></label>
       <label>Brand<select value={filters.brand} onChange={event => setFilters({ ...filters, brand: event.target.value as AnalyticsFilters["brand"] })}><option value="all">All brands</option>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
-      <label>Ending on<input type="date" value={filters.end} onChange={event => { if (event.target.value && /^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) setFilters({ ...filters, end: event.target.value }); }} /></label>
+      <label>Ending on<NativeDateInput value={filters.end} onChange={event => { if (event.target.value && /^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) setFilters({ ...filters, end: event.target.value }); }} /></label>
     </div><p>{data ? `${shortDate(data.start)} – ${shortDate(data.end)}, ${data.end.slice(0, 4)}` : "Selected period"}<span>{scopeLabel} · Saved PM records</span></p></section>
     {!response ? <div className="analytics-loading" role="status">Loading maintenance statistics…</div> : response.error ? <div className="analytics-loading" role="alert"><p>{response.error}</p><button className="ghostButton" type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : data && <>
       <section className="analytics-metrics" aria-label="Period summary"><div><span>PM records</span><strong>{data.total}</strong><small>{delta > 0 ? "+" : ""}{delta} vs previous {filters.days} days</small></div><div><span>Completed records</span><strong>{data.completed}<em>{rate}%</em></strong><small>Documented closure</small></div><div><span>Open records</span><strong>{data.review + data.draft}</strong><small>{data.review} at Review · {data.draft} other drafts</small></div><div><span>Equipment with PMs</span><strong>{data.equipment}</strong><small>Within selected period</small></div></section>

@@ -67,3 +67,19 @@ No se dispone aquí de un iPad físico ni de un simulador iPadOS conectado. El n
 6. VoiceOver, orden del foco y lectura de estados/errores. No se afirma certificación WCAG.
 
 La alternativa a la firma dibujada para usuarios que no puedan realizar trazos requiere una decisión del responsable del producto. Se conserva el mecanismo y las declaraciones vigentes. El historial de secciones mediante URL queda como mejora posterior; no forma parte de esta corrección visual.
+
+## Seguimiento: fechas de iOS y acciones de Reports — 5 de noviembre de 2026
+
+Las capturas del piloto en iPhone revelaron que el control de fecha desbordaba su columna. Coincide con el [error 301648 de WebKit](https://bugs.webkit.org/show_bug.cgi?id=301648): iOS calcula incorrectamente el ancho del control nativo con `width:100%` y padding. El anterior ajuste de `min-width` no cubría ese caso.
+
+- `NativeDateInput` conserva `type=date`, valor ISO, etiquetas, `required`, límites y eventos. Su contenedor dibuja el borde y aporta el espacio horizontal; el input nativo tiene padding cero y ocupa el interior. Se aplica en PM, Overview y ambos filtros de Reports. No se oculta el desborde ni se reemplaza el calendario del sistema.
+- Fechas y controles contiguos usan superficies de 48 px. El foco se muestra en el contenedor y los inputs conservan texto de 16 px.
+- Las tarjetas de Reports tienen una sola acción uniforme: Continue draft o View report. La eliminación se encuentra en el detalle y conserva su confirmación.
+- El detalle móvil/tablet oculta la cabecera de acciones de la colección. Muestra Back to reports, identificación y estado, y después la acción principal. En PMs completados, Download PDF es primaria y Create correction secundaria.
+- Report options agrupa la asignación del administrador y la eliminación. El panel se inicia cerrado para priorizar el documento; los permisos y endpoints no cambian.
+- Una sola versión se muestra como texto. Con varias, el selector usa etiquetas cortas y las flechas se reacomodan debajo en móvil.
+- El foco del detalle desplaza la cabecera completa para no esconder el botón de regreso. En móvil, los datos de las tarjetas pueden envolver líneas.
+
+Comprobación local en navegador Chromium: 320×740, 390×844, 768×1024, 820×1180, 1180×820 y 1440×900. Overview y PM sin desborde horizontal; input de fecha con padding cero dentro de su superficie. Fecha y datos conservados al alternar tamaños. Filtro de fecha actualizado mediante las teclas del control nativo y `min` propagado al campo final. Continuación de borrador, regreso al listado, opciones de eliminación sin ejecutarla e historial de una y varias versiones comprobados. PDF descargado desde su nueva ubicación.
+
+Evidencia local en `work/qa-ios-reports-2026-11-04/`. Esta verificación responsive no reproduce iOS/iPadOS: queda pendiente confirmar el calendario, teclado y ajuste final en el iPhone/iPad físico del piloto. No se modifican el generador PDF ni las plantillas PM.
