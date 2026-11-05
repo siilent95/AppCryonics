@@ -391,7 +391,10 @@ test("PostgreSQL migration, sessions, ownership, revisions, signatures and reten
         assert.equal(page.status, 200, logs);
         assert.match(await page.text(), /CryoPM/);
         assert.equal((await fetch(`${origin}/api/pm-records`, { headers: { cookie: cookieHeader } })).status, 200);
-        assert.equal((await fetch(`${origin}/api/auth/logout`, { method: "POST", headers: { origin, cookie: cookieHeader }, redirect: "manual" })).status, 303);
+        const currentIdentity=await (await fetch(`${origin}/api/offline/session`,{headers:{cookie:cookieHeader}})).json();
+        assert.equal((await fetch(`${origin}/api/auth/logout`,{method:"POST",headers:{origin,cookie:cookieHeader,"X-CryoPM-Actor":"wrong-technician"},redirect:"manual"})).status,403);
+        assert.equal((await fetch(`${origin}/api/pm-records`,{headers:{cookie:cookieHeader}})).status,200,"a mismatched handover must not revoke another technician’s session");
+        assert.equal((await fetch(`${origin}/api/auth/logout`, { method: "POST", headers: { origin, cookie: cookieHeader,"X-CryoPM-Actor":currentIdentity.user.id }, redirect: "manual" })).status, 303);
         assert.equal((await fetch(`${origin}/api/pm-records`, { headers: { cookie: cookieHeader } })).status, 401);
       } finally { server.kill(); await exited; }
     });

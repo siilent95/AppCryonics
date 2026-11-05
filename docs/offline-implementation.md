@@ -18,7 +18,7 @@ No se requiere PIN adicional. Safari y la PWA instalada deben prepararse y proba
 ## Arquitectura y garantías
 
 - IndexedDB `cryopm-offline-v1`: datos privados cifrados con AES-GCM y clave no exportable por técnico. La clave permanece en IndexedDB para la continuidad sin PIN; esto no protege frente a quien ya usa la tablet desbloqueada ni frente a código malicioso en el mismo origen. No se almacenan contraseñas ni cookies de sesión.
-- Escrituras locales con transacciones y comparación de versión cifrada. Los errores de cuota o almacenamiento aparecen como fallos; no se convierten en confirmaciones de guardado.
+- Escrituras locales con transacciones, comprobación del titular y generación del almacenamiento, y comparación de versión cifrada. Las respuestas tardías no pueden reponer datos o claves después de la salida. Los errores de cuota o almacenamiento aparecen como fallos; no se convierten en confirmaciones de guardado.
 - Una operación en vuelo es inmutable y se conserva hasta recibir una confirmación válida. Las ediciones posteriores se mantienen separadas de la versión enviada.
 - `POST /api/pm-sync`: transacción que actualiza/crea el PM, conserva capturas provisionales o finaliza, registra auditoría y confirma la operación. Tabla `pm_sync_operations` con clave única técnico + operación, huella del contenido y respuesta durable. Un reintento tras perder la respuesta devuelve la confirmación original.
 - Sesión, origen y cabecera de titular se comprueban en cada envío. Cambiar la cookie entre la comprobación previa y el POST no puede atribuir trabajo al nuevo usuario. Las lecturas preparadas comprueban también el titular devuelto por el servidor.
@@ -45,7 +45,7 @@ Este comando usa únicamente el PostgreSQL administrado local en `127.0.0.1:1543
 
 ## Evidencia local
 
-- Suite completa final: 44 pruebas aprobadas. También pasó la suite PostgreSQL con pruebas HTTP contra el build de producción (20 pruebas), incluidas sesión, CSP, controles de acceso y salida. Compilación y comprobación TypeScript correctas; ESLint sin errores (con avisos informativos sobre imágenes sin optimizador y navegación completa al salir).
+- Suite completa actual: 46 pruebas aprobadas; ver [revisión de seguridad previa al piloto](security-offline-pilot-2026-11-05.md). También pasó la suite PostgreSQL con pruebas HTTP contra el build de producción (20 pruebas), incluidas sesión, CSP, controles de acceso y salida. Compilación y comprobación TypeScript correctas; ESLint sin errores (con avisos informativos sobre imágenes sin optimizador y navegación completa al salir).
 - PostgreSQL: reintentos concurrentes de la misma operación, conflicto de revisiones, técnico distinto con PM distinto, capturas provisionales, cierre firmado, repetición del cierre, rechazo por sesión/origen/titular, reversión completa de cierre inválido y coincidencia de estadísticas offline con SQL.
 - IndexedDB simulado: cifrado y separación, clave no exportable, alteración detectada, actualizaciones simultáneas, recarga, respuesta perdida, edición posterior al envío, aislamiento del conflicto, fallo de almacenamiento y salida con limpieza después de confirmar.
 - Navegador local, build de producción: formulario recuperado y editable tras recargar; servidor pausado y reapertura desde el service worker; edición, Save & exit y segundo PM independiente; vista previa offline. Al volver el servidor, ambos llegaron una sola vez: `PM-3F2442FF` (revisión 2, conserva la observación escrita offline) y `PM-AAD0C445` (revisión 1).

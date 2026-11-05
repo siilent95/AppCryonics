@@ -33,7 +33,7 @@
   "exclude": [
     "node_modules",
     "work",
-    "**/* 2.ts",
-    "**/* 2.tsx"
+    "**/* *.ts",
+    "**/* *.tsx"
   ]
 }

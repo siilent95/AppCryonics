@@ -1,4 +1,4 @@
-import { clearOwner, deleteEntry, entries, metadata, readEntry, setMetadata, updateEntry, writeEntry } from "./vault";
+import { activateOwner, clearOwner, deleteEntry, entries, metadata, readEntry, updateEntry, writeEntry } from "./vault";
 import type { LocalDraft, OfflineUser, Preparation, SyncOperation, WorkspaceSnapshot } from "./types";
 import type { ReportDetail, SavedRecord } from "../pm/types";
 
@@ -36,14 +36,14 @@ export class OfflineEngine {
   getState = () => this.state;
   publish(update: Partial<OfflineState> = {}) { this.state = { ...this.state, ...update, revision:this.state.revision+1 }; this.listeners.forEach(fn=>fn()); }
   async activate(user: OfflineUser, offlineStart = false) {
-    const active = await metadata<{ owner: string }>("active");
+    const active = await metadata<{ owner: string; generation?:string }>("active");
     if (active && active.owner !== user.id) {
       const drafts = await entries<LocalDraft>(active.owner, "draft:");
       if (drafts.some(d => d.sequence > d.syncedSequence)) { this.publish({ blocked:true, error:"This tablet has unsynchronized work from the previous technician. Sign back in as that technician before handing it over." }); return; }
-      await clearOwner(active.owner);
+      await clearOwner(active.owner,active.generation);
     }
     this.user = user;
-    await writeEntry(user.id, "profile", user); await setMetadata("active", { owner:user.id });
+    await activateOwner(user.id); await writeEntry(user.id,"profile",user);
     const prepared = await readEntry<Preparation>(user.id, "prepared");
     this.publish({ ready:true, blocked:false, prepared:prepared || null, online: !offlineStart && (typeof navigator === "undefined" || navigator.onLine), error:"" });
     await this.refreshCounts();
@@ -71,7 +71,7 @@ export class OfflineEngine {
           formal, server:old?.server || options.server || null, status:blocked ? "blocked" : formal ? "pending" : "local", operation:old?.status === "blocked" && !blocked ? null : old?.operation || null,
           closing:!!options.close, error: blocked ? old!.error : "", errorCode:blocked ? old!.errorCode : undefined,
           updatedAt:changed ? now : old!.updatedAt, syncedAt:old?.syncedAt || null, editor:this.tabId, editorUntil:Date.now()+45_000 };
-      }, true);
+      });
       await this.setActive(id); await this.refreshCounts();
       if (draft?.formal && draft.status !== "blocked") this.schedule();
       return draft!;
@@ -175,14 +175,17 @@ export class OfflineEngine {
   }
   async handover() {
     await this.flush(); await this.sync(); await this.flush();
+    if(this.state.blocked || this.state.error || !this.state.online)throw new Error(this.state.error || "Connect as the current technician to finish signing out.");
     const drafts = await this.drafts();
     if (drafts.some(d=>d.editor && d.editor!==this.tabId && (d.editorUntil||0)>Date.now())) throw new Error("Close other tabs editing this technician’s PMs before handing over the tablet.");
     if (drafts.some(d=>d.sequence>d.syncedSequence)) throw new Error("Synchronize all device drafts before handing this tablet to another technician. Your current work has been preserved.");
     if (!this.user) throw new Error("No active technician.");
-    const response=await this.transport("/api/auth/logout", { method:"POST", signal:AbortSignal.timeout(8000) });
+    const active=await metadata<{owner:string;generation:string}>("active");
+    if(active?.owner!==this.user.id)throw new Error("The active technician changed. Sign in again before signing out.");
+    const response=await this.transport("/api/auth/logout", { method:"POST", headers:{"X-CryoPM-Actor":this.user.id}, signal:AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error("Connect to finish signing out safely.");
     for(const release of this.editingLocks.values())release();this.editingLocks.clear();
-    await clearOwner(this.user.id); this.user=null; this.publish({ ready:false });
+    await clearOwner(this.user.id,active.generation); this.user=null; this.publish({ ready:false });
   }
 }
 export const offlineEngine = new OfflineEngine();

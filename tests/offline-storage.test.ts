@@ -78,4 +78,47 @@ test('protected offline storage, retries, conflicts, recovery and technician han
     await engine.persist(unsaved,snapshot(),{formal:true});await engine.sync();await engine.handover();assert.equal(logout,1);assert.equal(await metadata('active'),undefined);assert.equal((await entries(user.id,'draft:')).length,0);
     await assert.rejects(engine.persist(unsaved,snapshot()),/not ready/);
   });
+  await t.test('a late preparation response cannot recreate private data after handover, even to the same account',async()=>{
+    for(const target of [user,{...user,id:'next-technician'}]) {
+      const holder=new OfflineEngine(transport);await holder.activate(user);
+      const encrypt=crypto.subtle.encrypt;
+      let entered!:()=>void,release!:()=>void;
+      const started=new Promise<void>(resolve=>{entered=resolve;}),gate=new Promise<void>(resolve=>{release=resolve;});
+      crypto.subtle.encrypt=async function(...args:Parameters<SubtleCrypto['encrypt']>){entered();await gate;return encrypt.apply(this,args);};
+      const late=writeEntry(user.id,'resource:late',{private:'synthetic old visit'});
+      const rejected=assert.rejects(late,/active technician changed/);
+      try {
+        await started;crypto.subtle.encrypt=encrypt;
+        await holder.handover();
+        const next=new OfflineEngine(transport);await next.activate(target);
+        release();await rejected;
+        assert.equal(await readEntry(user.id,'resource:late'),undefined);
+        assert.equal((await metadata<{owner:string}>('active'))?.owner,target.id);
+        assert.equal((await readEntry<{id:string}>(target.id,'profile'))?.id,target.id);
+        if(target.id!==user.id) {
+          const db=await openVault();
+          const orphan=await new Promise<unknown>(resolve=>{const r=db.transaction('keys').objectStore('keys').get(user.id);r.onsuccess=()=>resolve(r.result);});
+          assert.equal(orphan,undefined,'a rejected late response cannot recreate the old encryption key');
+          await clearOwner(user.id);
+          assert.equal((await metadata<{owner:string}>('active'))?.owner,target.id,'cleanup of an old owner cannot erase the new active profile');
+        }
+        await clearOwner(target.id);
+      } finally {crypto.subtle.encrypt=encrypt;release();}
+    }
+    await assert.rejects(writeEntry(user.id,'late-after-logout',{private:'synthetic'}),/active technician changed/);
+    await assert.rejects(updateEntry(user.id,'late-update',()=>({private:'synthetic'})),/active technician changed/);
+  });
+  await t.test('a session belonging to another technician blocks handover before logout or cleanup',async()=>{
+    let loggedOut=false;
+    const guarded=new OfflineEngine(async url=>{
+      if(url==='/api/auth/logout'){loggedOut=true;return reply({ok:true});}
+      return reply({user:{...user,id:'different-server-account'}});
+    });
+    await guarded.activate(user);
+    await assert.rejects(guarded.handover(),/another technician/);
+    assert.equal(loggedOut,false);
+    assert.equal((await metadata<{owner:string}>('active'))?.owner,user.id);
+    await clearOwner(user.id);
+  });
+
 });
