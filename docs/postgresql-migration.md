@@ -18,6 +18,8 @@ PostgreSQL stores signatures as `bytea`; database backups include them. No R2 or
 
 Use persistent PostgreSQL and a Node.js host, VM or container platform supporting Next.js. Configure `DATABASE_URL` with provider-required TLS (e.g. `sslmode=verify-full`) and `APP_ORIGIN=https://your-domain`. Terminate HTTPS at the host or reverse proxy. External identity headers are not trusted.
 
+For a provider with a private root CA, such as Supabase, download its official PEM certificate and set `DATABASE_SSL_CA_BASE64` to its base64 encoding. The application validates the certificate and hostname; invalid certificates and conflicting or weaker URL SSL settings are rejected. This variable is server-only. Without it, the existing `DATABASE_URL` behavior is preserved. `npm run build` uses Webpack, as required by Hostinger for Next.js 16.3.3 and later.
+
 Run `npm ci` and `npm run db:migrate` from the release checkout with target database configuration before starting the application. Migrations are a release step. Create the first account using the CLI. Build with `npm run build`; run with `npm start`, or build the Dockerfile and pass environment variables to the container. The runtime image excludes migration tooling; execute migrations separately from the release checkout.
 
 Random session tokens are stored hashed, expire after 12 hours, and use HttpOnly/SameSite cookies. Public production requires HTTPS. Mutations require an Origin matching `APP_ORIGIN`. Login has a database-backed account rate limit. Disabling an account invalidates its access immediately.
