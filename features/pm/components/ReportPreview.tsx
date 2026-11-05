@@ -1,5 +1,4 @@
 "use client";
-import { PdfDownloadButton } from "./PdfDownloadButton";
 import type { InspectionStep, ReportDetail, ChecklistItem, NotesState, ExamValues } from "@/features/pm/types";
 import { constructionItems, operationItems, verificationItems, equipment } from "@/features/pm/catalogs";
 import { formatDate, pmDate, freezerImage, recordBrandLabel, brandLabel } from "@/features/pm/helpers";
@@ -65,10 +64,6 @@ export function ReportPreview({
 
   return (
     <article className="reportPreview">
-      <div className="reportToolbar">
-        <div><span>Preventive maintenance report</span><h2>{record.recordNumber}</h2></div>
-        <PdfDownloadButton key={record.id} id={record.id} completed={record.status === "completed"} requiresSignatures={!record.correctsRecordId} />
-      </div>
       <section className="reportCover" aria-label="PM report summary">
         <img className="reportLogo" alt="Cryogenics Solution Inc." src="/brand/logo-primary.png" />
         <div className="reportCoverHeading"><span>Preventive maintenance</span><strong>{record.recordNumber}</strong><small>PM date {formatDate(pmDate(record))}</small></div>

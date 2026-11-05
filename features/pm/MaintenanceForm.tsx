@@ -1,4 +1,5 @@
 "use client";
+import { NativeDateInput } from "./components/NativeDateInput";
 import type { InspectionStep, ChecklistItem, ExamValues } from "@/features/pm/types";
 import { steps, constructionItems, operationItems, verificationItems } from "@/features/pm/catalogs";
 import { freezerImage } from "@/features/pm/helpers";
@@ -243,7 +244,7 @@ return (
               </label>
               <label className="identificationField">
                 <span>PM execution date</span>
-                <input aria-label="PM execution date" onChange={(event) => setPerformedOn(event.target.value)} required type="date" value={performedOn} />
+                <NativeDateInput aria-label="PM execution date" onChange={(event) => setPerformedOn(event.target.value)} required value={performedOn} />
               </label>
               <div className="identificationField modelField">
                 <span>Freezer model</span>

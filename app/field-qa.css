@@ -8,8 +8,12 @@
   .appShell :is(label,.primaryNav button,.ghostButton,.signOut),.catalogDialog label { font-weight:500; }
   .appShell :is(input,select,textarea),.catalogDialog :is(input:not([type=checkbox]),select,textarea),.loginPanel input { min-width:0; max-width:100%; font-size:16px; }
   .appShell :is(input,select,textarea),.catalogDialog :is(input,select,textarea),.loginPanel input { color-scheme:dark; }
-  .appShell input[type=date] { display:block; width:100%; min-width:0; min-height:48px; -webkit-min-logical-width:0; padding:10px 12px; text-align:left; }
-  .appShell input[type=date]::-webkit-date-and-time-value { text-align:left; min-height:1.3em; }
+  .appShell :is(.identificationField,.filterBar) :is(input,select),.analytics-toolbar select { min-height:48px; }
+  .appShell .nativeDateField { display:block; width:100%; min-width:0; max-width:100%; min-height:48px; padding:0 12px; border:1px solid rgba(155,220,238,.27); border-radius:8px; background:linear-gradient(150deg,rgba(112,185,210,.1),rgba(10,32,49,.7)); box-shadow:inset 0 1px 0 rgba(224,250,255,.06); color:var(--ink); text-transform:none; letter-spacing:normal; }
+  .appShell .nativeDateField input[type=date] { display:block; box-sizing:border-box; width:100%; min-width:0; max-width:100%; min-height:46px; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:inherit; font:inherit; font-size:16px; line-height:1.5; -webkit-min-logical-width:0; -webkit-appearance:none; appearance:none; text-align:left; }
+  .appShell .nativeDateField:focus-within { outline:2px solid #80e1ed; outline-offset:3px; }
+  .appShell .nativeDateField input:focus { outline:none; box-shadow:none; }
+  .appShell input[type=date]::-webkit-date-and-time-value { text-align:left; min-height:1.5em; }
   .appShell input[type=date]::-webkit-calendar-picker-indicator { opacity:1; padding:4px; }
   .analytics-toolbar label { white-space:nowrap; }
   .appShell .reportPreview { --muted:#526174; --green:#146344; color-scheme:light; font-weight:500; }
@@ -40,10 +44,9 @@
   .privacyDetails summary { cursor:pointer; min-height:44px; padding:10px 0; }
   .privacyDetails p { margin:0; }
   .reportDetailHeading { margin:0; font-size:22px; }
-  .reportDetailHeading:focus { outline:2px solid #80e1ed; outline-offset:4px; }
-  .reportBack { align-self:flex-start; }
+  .reportDetailHeading:focus-visible { outline:2px solid #80e1ed; outline-offset:4px; }
+  .reportBack { display:none; }
   .reportWorkspace[hidden],.reportListPane[hidden] { display:none; }
-  .reportMobileHeader { display:none; }
   .catalogDialog,#analytics-detail { max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   .catalogDialog :is(input,textarea,select),#analytics-detail :is(input,textarea,select) { scroll-margin-block:80px; }
   .loginPanel { font-weight:500; margin-block:max(24px,env(safe-area-inset-top)); }
@@ -78,7 +81,7 @@
   .top-equipment-identity>strong { font-size:18px; }
   .analytics-top { grid-template-columns:minmax(0,1.6fr) minmax(250px,1fr); }
   .analytics-panel :is(.segmented button,.text-button),.catalogDetailActions button { min-height:48px; }
-  .reportMobileHeader { display:flex; align-items:center; flex-wrap:wrap; gap:16px; }
+  .reportBack { display:block; justify-self:start; }
   .reportsGrid { display:block; }
   .reportList { max-height:none; min-height:0; overflow:visible; }
   .reportListRow { margin-bottom:8px; }
@@ -195,7 +198,7 @@
   .pdfViewerControls select { min-height:48px; }
   .accountManagement .userRowActions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
   .accountManagement .userRowActions>button { width:100%; min-width:0; min-height:48px; white-space:normal; }
-  .appShell .reportRowAction { width:160px; max-width:calc(100% - 24px); min-height:48px; }
+  .appShell .reportRowAction { width:100%; min-width:0; min-height:48px; margin:0; }
   .pmSaveButtons>.ghostButton { width:120px; min-height:48px; }
   .formFooter :is(.backButton,.nextButton) { width:184px; min-height:48px; flex-shrink:0; }
 }
@@ -263,4 +266,55 @@
   .pmHeaderActions .saveState { display:none; }
   .pmSaveButtons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
   .pmSaveButtons>.ghostButton { width:100%; padding-inline:8px; }
+}
+
+/* Reports: one row action, then contextual tools beside the document. */
+@media screen {
+  .reportRowActions { display:grid; padding:0 12px 12px; }
+  .reportDetailHeader { display:grid; gap:16px; }
+  .reportDetailIdentity { display:flex; flex-wrap:wrap; align-items:center; gap:12px; min-width:0; }
+  .reportDetailIdentity h2 { overflow-wrap:anywhere; }
+  .reportWorkspace .reportEditActions { display:flex; flex-wrap:wrap; gap:12px; margin:0; align-items:start; }
+  .reportEditActions>:is(button,.pdfDownload) { flex:1 1 180px; min-width:0; max-width:none; }
+  .reportEditActions button { width:100%; height:auto; min-height:48px; padding:12px 16px; white-space:normal; }
+  .reportEditActions .pdfDownload small { color:var(--muted); text-align:left; font-size:13px; }
+  .reportEditActions .pdfDownload [role=alert] { color:#ffb4a9; }
+  .reportOptions { border:1px solid var(--glass-line); border-radius:12px; background:rgba(11,35,53,.3); }
+  .reportOptions>summary { min-height:48px; padding:14px 16px; color:var(--muted); cursor:pointer; font-size:14px; }
+  .reportOptions[open]>summary { border-bottom:1px solid var(--glass-line); color:var(--ink); }
+  .reportOptions .assignmentPanel { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px 12px; padding:16px; border:0; border-radius:0; background:none; box-shadow:none; }
+  .reportOptions .assignmentPanel>div { grid-column:1/-1; margin:0; }
+  .reportOptions .assignmentPanel label { min-width:0; }
+  .reportOptions .assignmentPanel :is(select,button) { min-width:0; min-height:48px; }
+  .reportOptions .assignmentPanel>p { grid-column:1/-1; }
+  .reportDeleteAction { padding:16px; display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; }
+  .assignmentPanel+.reportDeleteAction { border-top:1px solid var(--glass-line); }
+  .reportDeleteAction p { flex:1 1 220px; margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+  .reportDeleteAction button { min-height:48px; }
+  .reportWorkspace .reportVersions { margin:0; }
+  .reportVersions .singleVersion { margin:0; }
+  .analytics-toolbar .nativeDateField { width:160px; }
+}
+@media screen and (max-width:1180px) {
+  .reportsView[data-detail-open=true]>:is(.viewHero,.reportManagementBar) { display:none; }
+  .reportDetailHeader { scroll-margin-top:104px; }
+  .analytics-toolbar .nativeDateField { width:100%; margin-top:6px; }
+}
+@media screen and (max-width:650px) {
+  .reportHeroActions,.reportViewTabs { width:100%; }
+  .reportList .reportSelect div>:is(span,small) { white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; }
+  .reportManagementBar { align-items:stretch; }
+  .reportViewTabs { gap:4px; padding:4px; border:1px solid var(--glass-line); border-radius:12px; }
+  .reportViewTabs>.ghostButton { border-color:transparent; background:transparent; box-shadow:none; }
+  .reportViewTabs>.ghostButton[aria-pressed=true] { border-color:rgba(155,220,238,.38); background:rgba(112,185,210,.15); }
+  .reportDetailIdentity h2 { font-size:22px; }
+  .reportEditActions>:is(button,.pdfDownload) { flex-basis:100%; }
+  .reportOptions .assignmentPanel { grid-template-columns:minmax(0,1fr); }
+  .reportOptions .assignmentPanel>button,.reportDeleteAction button { width:100%; }
+  .reportDeleteAction { flex-direction:column; align-items:stretch; }
+  .reportDeleteAction p { flex:auto; }
+  .reportVersions .versionHistoryControls { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .versionHistoryControls label { grid-column:1/-1; grid-row:1; }
+  .versionHistoryControls>.ghostButton { min-height:48px; }
+  .analytics-toolbar>div>label:last-child { grid-column:1/-1; }
 }

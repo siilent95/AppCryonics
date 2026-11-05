@@ -3,6 +3,8 @@ import type { PmRecordSummary, ReportDetail } from "@/features/pm/types";
 import { formatDate, pmDate, statusLabel, recordBrandLabel } from "@/features/pm/helpers";
 import { PmAssignment } from "@/features/accounts/PmAssignment";
 import { ReportPreview } from "@/features/pm/components/ReportPreview";
+import { NativeDateInput } from "./NativeDateInput";
+import { PdfDownloadButton } from "./PdfDownloadButton";
 import { useEffect, useRef, useState } from "react";
 import { VersionHistory } from "./VersionHistory";
 import { CorrectionDialog } from "./CorrectionDialog";
@@ -61,7 +63,10 @@ export function ReportsView({
     // Also supports opening an existing record from an Overview chart.
     const frame = requestAnimationFrame(() => {
       setDetailOpen(true);
-      requestAnimationFrame(() => { detailHeading.current?.focus(); detailHeading.current?.scrollIntoView({ block: "start" }); });
+      requestAnimationFrame(() => {
+        detailHeading.current?.focus({ preventScroll: true });
+        detailHeading.current?.closest("header")?.scrollIntoView({ block: "start" });
+      });
     });
     return () => cancelAnimationFrame(frame);
   }, [detail, detailLoading]);
@@ -85,14 +90,14 @@ export function ReportsView({
   }
 
   return (
-    <div className="managementView reportsView">
+    <div className="managementView reportsView" data-detail-open={!trash && (detailOpen || detailLoading)}>
       <section className="viewHero">
         <div>
           <div className="eyebrow">PM documentation</div>
           <h1>Reports</h1>
 
         </div>
-        <div className="reportHeroActions"><button className="primaryAction" disabled={newPmBusy} onClick={onNewPm} type="button">New PM</button><button className="ghostButton" disabled={busy || pagination.total === 0 || exporting} onClick={async () => { setExporting(true); setActionError(""); try { onExport(await reports.exportAll()); } catch (error) { setActionError(error instanceof Error ? error.message : "Unable to export reports."); } finally { setExporting(false); } }} type="button">{exporting ? "Exporting…" : "Export filtered CSV"}</button></div>
+        <div className="reportHeroActions"><button className="primaryAction" disabled={newPmBusy} onClick={onNewPm} type="button">New PM</button><button className="ghostButton" disabled={busy || pagination.total === 0 || exporting} onClick={async () => { setExporting(true); setActionError(""); try { onExport(await reports.exportAll()); } catch (error) { setActionError(error instanceof Error ? error.message : "Unable to export reports."); } finally { setExporting(false); } }} type="button">{exporting ? "Exporting…" : "Export CSV"}</button></div>
       </section>
 
       <div className="reportManagementBar"><div className="reportViewTabs" role="group" aria-label="Report collection"><button className="ghostButton" aria-pressed={!trash} type="button" onClick={() => { changeFilters({ view: "active", brand: "" }); setDetailOpen(false); setNotice(""); }}>Active reports</button><button className="ghostButton" aria-pressed={trash} type="button" onClick={() => { changeFilters({ view: "trash", brand: "" }); setDetailOpen(false); setNotice(""); }}>Trash</button></div><span>{trash ? `Recover deleted PMs for ${TRASH_RETENTION_DAYS} days. Then they are permanently deleted.` : `Trash keeps deleted PMs for ${TRASH_RETENTION_DAYS} days.`}</span></div>
@@ -108,8 +113,8 @@ export function ReportsView({
             <label><span>Brand</span><select onChange={(event) => changeFilters({ brand: event.target.value })} value={filters.brand}><option value="">All</option>{reports.brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
             <label><span>Status</span><select onChange={(event) => changeFilters({ status: event.target.value })} value={filters.status}><option value="">All</option><option value="draft">Draft</option><option value="completed">Completed</option><option value="archived">Archived</option></select></label>
             <label><span>Technician</span><input aria-label="Filter reports by technician" onChange={(event) => changeFilters({ technician: event.target.value })} placeholder="Technician name" value={filters.technician} /></label>
-            <label><span>PM from</span><input aria-label="PM date from" onChange={(event) => changeFilters({ from: event.target.value })} type="date" value={filters.from} /></label>
-            <label><span>PM to</span><input aria-label="PM date to" min={filters.from || undefined} onChange={(event) => changeFilters({ to: event.target.value })} type="date" value={filters.to} /></label>
+            <label><span>PM from</span><NativeDateInput aria-label="PM date from" onChange={(event) => changeFilters({ from: event.target.value })} value={filters.from} /></label>
+            <label><span>PM to</span><NativeDateInput aria-label="PM date to" min={filters.from || undefined} onChange={(event) => changeFilters({ to: event.target.value })} value={filters.to} /></label>
             {activeFilters > 0 && <button className="ghostButton" type="button" onClick={() => changeFilters({ brand: "", status: "", technician: "", from: "", to: "" })}>Clear filters</button>}
           </div>}
           <div className="reportResultsStatus" role="status">{busy ? "Loading reports…" : `${pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1}–${Math.min(pagination.page * pagination.pageSize, pagination.total)} of ${pagination.total} PMs`}</div>
@@ -120,19 +125,39 @@ export function ReportsView({
                 <span className={`brandToken ${record.brand}`}>{record.equipmentBrandId && record.equipmentBrandId !== record.brand ? recordBrandLabel(record).slice(0,2).toUpperCase() : record.brand === "mve" ? "MV" : "TW"}</span>
                 <div><strong>{record.recordNumber}</strong><span>{record.freezerSerial || "Serial pending"} · {record.model}</span><small>{record.assignedTechnicianName ? `Assigned to ${record.assignedTechnicianName}` : "No technician assigned"} · PM {formatDate(pmDate(record))}</small><small>{record.technicianName ? `Signed by ${record.technicianName}` : (record.documentVersion || 1) > 1 ? "Original signatures linked" : "Not signed yet"}</small>{(record.documentVersion || 1) > 1 && <small>Version {record.documentVersion}</small>}{trash && trashExpiresAt(record.deletedAt) && <small className="trashDeadline">Recover until <time dateTime={trashExpiresAt(record.deletedAt)!}>{new Date(trashExpiresAt(record.deletedAt)!).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</time></small>}</div>
                 <span className={`recordStatus ${record.status}`}>{statusLabel(record.status)}</span>
-              </button>{!trash && record.canEdit && <button type="button" className="ghostButton reportRowAction" disabled={busy || detailLoading} onClick={() => onResume(record)} aria-label={`Continue ${record.recordNumber}`}>Continue draft</button>}{!trash && record.canCorrect && <button type="button" className="ghostButton reportRowAction" disabled={busy} onClick={() => setCorrection(record)} aria-label={`Correct ${record.recordNumber}`}>Create correction</button>}{record.canDelete && (trash ? <button className="ghostButton reportRowAction" disabled={busy || restoring !== null} type="button" onClick={() => void restore(record)} aria-label={`Restore ${record.recordNumber}`}>{restoring === record.id ? "Restoring…" : "Restore PM"}</button> : <button className="ghostButton dangerText reportRowAction" disabled={busy} type="button" onClick={() => setDeleting(record)} aria-label={`Delete ${record.recordNumber}`}>Delete PM</button>)}</div>
+              </button>
+                <div className="reportRowActions">
+                  {!trash && (record.canEdit
+                    ? <button type="button" className="ghostButton reportRowAction" disabled={busy || detailLoading} onClick={() => onResume(record)} aria-label={`Continue ${record.recordNumber}`}>Continue draft</button>
+                    : <button type="button" className="ghostButton reportRowAction" disabled={busy || detailLoading} onClick={() => openDetail(record)} aria-label={`View ${record.recordNumber}`}>View report</button>)}
+                  {trash && record.canDelete && <button className="ghostButton reportRowAction" disabled={busy || restoring !== null} type="button" onClick={() => void restore(record)} aria-label={`Restore ${record.recordNumber}`}>{restoring === record.id ? "Restoring…" : "Restore PM"}</button>}
+                </div>
+              </div>
             ))}
             {!busy && !error && records.length === 0 && <div className="emptyState"><strong>{trash ? "No deleted PMs match the filters" : "No reports match the filters"}</strong><span>{trash ? `Deleted PMs stay recoverable for ${TRASH_RETENTION_DAYS} days.` : "Change the search, brand or status selection."}</span></div>}
           </div>
           <nav className="reportPagination" aria-label="Reports pagination"><button className="ghostButton" disabled={busy || pagination.page <= 1} type="button" onClick={() => changeFilters({ page: pagination.page - 1 })}>Previous</button><span>Page {pagination.page} of {pagination.pages}<small>25 per page</small></span><button className="ghostButton" disabled={busy || pagination.page >= pagination.pages} type="button" onClick={() => changeFilters({ page: pagination.page + 1 })}>Next</button></nav>
         </section>
         {trash ? <div className="reportPreview empty"><strong>Trash</strong><span>Restore a PM within {TRASH_RETENTION_DAYS} days to reopen its reports and version history. After the deadline, it is permanently deleted.</span></div> : <div className="reportWorkspace" data-open={detailOpen || detailLoading}>
-          <div className="reportMobileHeader"><button type="button" className="ghostButton reportBack" onClick={backToReports}>Back to reports</button><h2 ref={detailHeading} tabIndex={-1} className="reportDetailHeading">{detail?.record.recordNumber || "Report details"}</h2></div>
+          <header className="reportDetailHeader">
+            <button type="button" className="ghostButton reportBack" onClick={backToReports}>← Back to reports</button>
+            <div className="reportDetailIdentity"><h2 ref={detailHeading} tabIndex={-1} className="reportDetailHeading">{detail?.record.recordNumber || "Report details"}</h2>{detail && <span className={`recordStatus ${detail.record.status}`}>{statusLabel(detail.record.status)}</span>}</div>
+          </header>
           {detail && !detailLoading && <>
-          {isAdmin && detail.versions?.at(-1)?.id === detail.record.id && <PmAssignment key={`${detail.record.id}-${detail.record.revision}`} record={detail.record} onAssigned={onAssigned} />}
-          <div className="reportEditActions">{detail.record.canDelete && <button className="ghostButton dangerText" type="button" onClick={() => setDeleting(detail.record)}>Delete PM</button>}{detail.record.canEdit && <button className="primaryAction continuePm" type="button" onClick={() => onContinue(detail)}>Continue draft</button>}{detail.record.canCorrect && <button className="primaryAction" type="button" onClick={() => setCorrection(detail.record)}>Create correction</button>}{!detail.record.canEdit && !detail.record.canCorrect && <p>This version is read-only. Drafts can be edited by their assigned technician or an admin.</p>}</div>
-          <VersionHistory detail={detail} onOpen={id => onOpenReport({ ...detail.record, id })} />
-        </>}<ReportPreview catalogModels={catalogModels} detail={detail} error={detailError} loading={detailLoading} /></div>}
+            <div className="reportEditActions" aria-label="Report actions">
+              {detail.record.canEdit && <button className="primaryAction continuePm" type="button" onClick={() => onContinue(detail)}>Continue draft</button>}
+              {detail.record.status === "completed" && <PdfDownloadButton key={detail.record.id} id={detail.record.id} completed requiresSignatures={!detail.record.correctsRecordId} />}
+              {detail.record.canCorrect && <button className="ghostButton" type="button" onClick={() => setCorrection(detail.record)}>Create correction</button>}
+              {!detail.record.canEdit && !detail.record.canCorrect && <p>This version is read-only. Drafts can be edited by their assigned technician or an admin.</p>}
+            </div>
+            {((isAdmin && detail.versions?.at(-1)?.id === detail.record.id) || detail.record.canDelete) && <details className="reportOptions" key={detail.record.id}>
+              <summary>Report options</summary>
+              {isAdmin && detail.versions?.at(-1)?.id === detail.record.id && <PmAssignment key={`${detail.record.id}-${detail.record.revision}`} record={detail.record} onAssigned={onAssigned} />}
+              {detail.record.canDelete && <div className="reportDeleteAction"><p>Move this PM to Trash. It can be restored within {TRASH_RETENTION_DAYS} days.</p><button className="ghostButton dangerText" type="button" onClick={() => setDeleting(detail.record)}>Delete PM</button></div>}
+            </details>}
+            <VersionHistory detail={detail} onOpen={id => onOpenReport({ ...detail.record, id })} />
+          </>}<ReportPreview catalogModels={catalogModels} detail={detail} error={detailError} loading={detailLoading} /></div>}
+
       </div>
       {deleting && <DeleteReportDialog record={deleting} onClose={() => setDeleting(null)} onDeleted={ids => { setDetailOpen(false); selectedRow.current = null; setNotice(`${deleting.recordNumber} moved to Trash. Recover it within ${TRASH_RETENTION_DAYS} days.`); onReportsChanged(ids, true); reports.refresh(); }} />}
       {correction && <CorrectionDialog record={correction} onClose={() => setCorrection(null)} onCreated={onCorrectionCreated} />}
