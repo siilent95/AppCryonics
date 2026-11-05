@@ -3,7 +3,7 @@ export type StepKey = "construction" | "operation" | "verification" | "examinati
 export type InspectionStep = Exclude<StepKey, "review">;
 export type BrandKey = "taylor" | "mve";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
-export type CompletionStatus = "idle" | "completing" | "completed" | "error";
+export type CompletionStatus = "idle" | "completing" | "queued" | "completed" | "error";
 export type WorkspaceView = "overview" | "orders" | "equipment" | "reports" | "users";
 export type RecordsStatus = "idle" | "loading" | "loaded" | "error";
 export type PmStatus = "draft" | "ready_for_signature" | "completed" | "archived";
@@ -57,6 +57,8 @@ export type ReportPayload = {
   flags?: Record<string, boolean>;
 };
 export type ReportDetail = {
+  localCapture?: import("../offline/types").Capture;
+  localState?: string;
   versions?: { id: string; recordNumber: string; documentVersion: number; status: string; correctionReason: string | null; createdAt: string }[];
   record: PmRecordSummary & {
     assignedTechnicianId?: string | null;

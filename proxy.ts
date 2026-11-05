@@ -25,4 +25,4 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/", "/login", "/activate", "/api/:path*", "/design-study/:path*"] };
+export const config = { matcher: ["/", "/offline", "/login", "/activate", "/api/:path*", "/design-study/:path*"] };

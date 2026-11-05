@@ -5,6 +5,6 @@ export async function GET(request: Request) {
   try {
     const actor = await requireActor(request);
     const owner = actor.role === "admin" ? null : actor.id;
-    return Response.json(await getAnalytics(owner, analyticsFilters(new URL(request.url).searchParams)), { headers: analyticsHeaders });
+    return Response.json(await getAnalytics(owner, analyticsFilters(new URL(request.url).searchParams)), { headers: {...analyticsHeaders, "X-CryoPM-Actor":actor.id} });
   } catch (error) { return apiError(error); }
 }

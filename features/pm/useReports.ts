@@ -1,4 +1,5 @@
 "use client";
+import { offlineJson } from "../offline/data";
 import { useEffect, useRef, useState } from "react";
 import type { PmRecordSummary, RecordsStatus } from "./types";
 export type ReportFilters = { q: string; brand: string; status: string; technician: string; from: string; to: string; view: "active" | "trash"; page: number };
@@ -7,10 +8,7 @@ const initial: ReportFilters = { q: "", brand: "", status: "", technician: "", f
 async function loadPage(filters: ReportFilters, signal?: AbortSignal, maintenance = false): Promise<ReportPage> {
   const params = new URLSearchParams(Object.entries(filters).map(([key, value]) => [key, String(value)]).filter(([, value]) => !!value));
   if (maintenance) params.set("maintenance", "1");
-  const response = await fetch(`/api/pm-records?${params}`, { cache: "no-store", signal });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Unable to load reports.");
-  return result;
+  return offlineJson<ReportPage>(`/api/pm-records?${params}`,signal);
 }
 export function useReports(refreshKey: number) {
   const [filters, setFilters] = useState(initial);

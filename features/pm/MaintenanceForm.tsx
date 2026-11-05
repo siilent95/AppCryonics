@@ -202,7 +202,7 @@ export function MaintenanceForm({ workspace }: { workspace: ReturnType<typeof us
   }
 
 return (
-<fieldset className="pmFormFields" aria-label="PM form" disabled={completionStatus === "completed" || workspace.closingPm}>
+<fieldset className="pmFormFields" aria-label="PM form" disabled={!workspace.localHydrated || !workspace.localWritable || completionStatus === "completing" || completionStatus === "queued" || completionStatus === "completed" || workspace.closingPm}>
           <section className="orderHero">
             <div>
               <div className="eyebrow">Preventive maintenance · PM v0.2</div>
@@ -219,7 +219,7 @@ return (
             </div>
           </section>
 
-          <p className="pmProgressHelp">{workspace.draftRecordNumber ? `${workspace.draftRecordNumber} · ` : ""}Save your draft before closing or refreshing the app.</p>
+          <p className="pmProgressHelp">{workspace.draftRecordNumber ? `${workspace.draftRecordNumber} · ` : ""}Changes are saved on this tablet automatically. Save draft to synchronize with the server.</p>
           {saveStatus === "error" && <p className="accountError" role="alert">{saveError}</p>}
           {catalogState.status !== "loaded" && <div className="pmCatalogNotice" role="status">{catalogState.status === "error" ? catalogState.error : "Loading equipment catalog…"}<button className="ghostButton" type="button" onClick={() => void catalogState.refresh()}>Reload catalog</button></div>}
           <section className="equipmentIdentification" aria-labelledby="equipment-identification-title">
@@ -556,6 +556,7 @@ return (
                         <SignaturePad
                           ariaLabel="Responsible PM technician signature area"
                           disabled={completionStatus === "completing"}
+                          value={technicianSignature}
                           onChange={setTechnicianSignature}
                         />
                         <label className="signatureConsent">
@@ -579,6 +580,7 @@ return (
                         <SignaturePad
                           ariaLabel="PM recipient signature area"
                           disabled={completionStatus === "completing"}
+                          value={recipientSignature}
                           onChange={setRecipientSignature}
                         />
                         <label className="signatureConsent">
@@ -604,6 +606,7 @@ return (
                 <div className="footerRight">
                   {!activeComplete && <span className="blockingMessage" role="status">{blockingMessage()}</span>}
                   {saveStatus === "error" && <span className="blockingMessage" role="alert">{saveError}</span>}
+                  {completionStatus === "queued" && <p role="status">Completion saved on this tablet. Waiting for server confirmation; you may use Save &amp; exit.</p>}
                   {completionStatus === "error" && <span className="blockingMessage" role="alert">{completionError}</span>}
                   {activeStep !== "review"
                     ? <button className="nextButton" disabled={!activeComplete || saveStatus === "saving"} onClick={() => void goNext()} type="button">{saveStatus === "saving" ? "Saving..." : "Save and continue"}</button>
@@ -613,7 +616,7 @@ return (
                           !activeComplete ||
                           (!isCorrection && (!technicianSignature || !technicianName.trim() || !technicianResponsible || !recipientSignature || !recipientAccepted)) ||
                           completionStatus === "completing" ||
-                          completionStatus === "completed"
+                          completionStatus === "completed" || completionStatus === "queued"
                         }
                         onClick={() => void completePm()}
                         type="button"

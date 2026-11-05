@@ -1,4 +1,5 @@
 "use client";
+import { offlineJson } from "@/features/offline/data";
 import { useEffect, useState } from "react";
 import type { AnalyticsFilters } from "./types";
 export function filterQuery(filters: AnalyticsFilters) {
@@ -8,10 +9,7 @@ export function useAnalyticsResource<T>(url: string) {
   const [response, setResponse] = useState<{ url: string; data?: T; error?: string } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    fetch(url, { cache: "no-store", signal: controller.signal, headers: { Accept: "application/json" } })
-      .then(async result => {
-        const data = await result.json();
-        if (!result.ok) throw new Error(data.error || "Unable to load maintenance statistics.");
+    offlineJson<T>(url,controller.signal).then(data => {
         if (!controller.signal.aborted) setResponse({ url, data });
       }).catch(error => {
         if (!controller.signal.aborted) setResponse({ url, error: error instanceof Error ? error.message : "Unable to load statistics." });

@@ -87,6 +87,7 @@ export const pmEvents = pgTable(
         "status_changed",
         "signature_captured",
         "signature_deleted",
+        "offline_synchronized",
         "archived",
         "assigned",
         "correction_created",
@@ -112,6 +113,15 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () =>
 export const pmSignatures = pgTable("pm_signatures", {
   key: text("key").primaryKey(), data: bytea("data").notNull(),
   contentType: text("content_type").notNull(), metadataJson: text("metadata_json").notNull(),
+});
+export const pmSyncOperations = pgTable("pm_sync_operations", {
+  actorId: text("actor_id").notNull(), operationId: text("operation_id").notNull(),
+  requestHash: text("request_hash").notNull(), resultJson: text("result_json").notNull(),
+  createdAt: text("created_at").notNull(),
+}, table => [uniqueIndex("pm_sync_actor_operation_uidx").on(table.actorId, table.operationId)]);
+export const pmDraftCaptures = pgTable("pm_draft_captures", {
+  recordId: text("record_id").primaryKey().references(() => pmRecords.id, { onDelete: "cascade" }),
+  actorId: text("actor_id").notNull(), captureJson: text("capture_json").notNull(), updatedAt: text("updated_at").notNull(),
 });
 export const users = pgTable("users", {
   id: text("id").primaryKey(), email: text("email").notNull().unique(),

@@ -95,7 +95,12 @@ try {
   } finally { await pool.end(); }
   console.log("Local PostgreSQL ready on 127.0.0.1:15433; data persists in work/postgres-local.");
   console.log("CryoPM: http://localhost:3000 — test credentials are in .env.local.");
-  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"], {
+  const production = process.argv.includes("--production");
+  if (production) {
+    const build = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build", "--webpack"], {cwd:root,env:{...process.env,NODE_ENV:"production"},stdio:"inherit"});
+    const [code] = await once(build,"exit"); if(code!==0)throw new Error("Production build failed.");
+  }
+  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", ...(production ? ["start"] : ["dev", "--webpack"]), "--hostname", "127.0.0.1", "--port", "3000"], {
     cwd: root, env: process.env, stdio: "inherit",
   });
   const [code] = await once(app, "exit");

@@ -1,11 +1,13 @@
 "use client";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 export function SignaturePad({
   ariaLabel,
   disabled,
   onChange,
+  value = "",
 }: {
+  value?: string;
   ariaLabel: string;
   disabled: boolean;
   onChange: (dataUrl: string) => void;
@@ -13,6 +15,18 @@ export function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const hasInkRef = useRef(false);
+
+  const emitted = useRef("");
+  useEffect(() => {
+    const canvas = canvasRef.current, context = canvas?.getContext("2d");
+    if (!canvas || !context || value === emitted.current) return;
+    let active = true;
+    if (!value) { context.clearRect(0, 0, canvas.width, canvas.height); hasInkRef.current = false; emitted.current = ""; return; }
+    const image = new Image();
+    image.onload = () => { if (!active || drawingRef.current) return; context.clearRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); hasInkRef.current = true; emitted.current = value; };
+    image.src = value;
+    return () => { active = false; };
+  }, [value]);
 
   function point(event: ReactPointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -55,7 +69,7 @@ export function SignaturePad({
     if (!canvas || !drawingRef.current) return;
     drawingRef.current = false;
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    if (hasInkRef.current) onChange(canvas.toDataURL("image/png"));
+    if (hasInkRef.current) { emitted.current = canvas.toDataURL("image/png"); onChange(emitted.current); }
   }
 
   function clearSignature() {
@@ -64,6 +78,7 @@ export function SignaturePad({
     if (!canvas || !context || disabled) return;
     context.clearRect(0, 0, canvas.width, canvas.height);
     hasInkRef.current = false;
+    emitted.current = "";
     onChange("");
   }
 

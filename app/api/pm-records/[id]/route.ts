@@ -69,7 +69,7 @@ export async function GET(request: Request, context: RouteContext) {
         events,
         versions,
       },
-      { headers: privateHeaders },
+      { headers: {...privateHeaders,"X-CryoPM-Actor":actor.id} },
     );
   } catch (error) {
     return apiError(error);

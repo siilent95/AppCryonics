@@ -10,6 +10,7 @@ import "./glass.css";
 import "@/features/equipment/equipment.css";
 import "./field-qa.css";
 import "./auth.css";
+import "@/features/offline/offline.css";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_ORIGIN || "http://localhost:3000"),
   title: "CryoPM · Cryogenics Solution Inc.",
   description: "Preventive maintenance records for cryogenic equipment.",
-  icons: { icon: "/brand/icon.png" },
+  icons: { icon: "/brand/icon.png", apple:"/brand/apple-touch-icon.png" },
+  appleWebApp:{capable:true,title:"CryoPM",statusBarStyle:"black-translucent"},
   openGraph: {
     title: "CryoPM",
     description: "Preventive Maintenance, Precisely Controlled",

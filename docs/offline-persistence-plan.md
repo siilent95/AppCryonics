@@ -1,8 +1,8 @@
 # CryoPM: persistencia y trabajo sin conexión en PWA
 
-Fecha: 5 de noviembre de 2026. Revisión 3. Estado: **requisitos de PWA, consulta offline y concurrencia confirmados; implementación no iniciada**.
+Fecha: 5 de noviembre de 2026. Revisión 4. Estado: **implementación en rama y validación local; falta validación física en iPad y despliegue del piloto**.
 
-Rama: `codex/offline-persistence`, creada desde `main` (`3a1c5cd`). Este cambio documenta el trabajo; no modifica ni despliega la aplicación.
+Rama: `codex/offline-persistence`, creada desde `main` (`3a1c5cd`). La implementación y las pruebas locales están descritas en [offline-implementation.md](offline-implementation.md). El entorno publicado todavía no se ha modificado.
 
 ## 1. Objetivo y contexto confirmado
 
@@ -21,7 +21,7 @@ Un técnico debe poder conservar y continuar su PM ante una recarga, cierre de S
 - La administración de usuarios y las demás operaciones administrativas requieren conexión; no se encolan para ejecutarlas después.
 - Varios técnicos pueden trabajar simultáneamente en otras tablets y ubicaciones. La sincronización se limita a cada PM y no debe sobrescribir ni bloquear el trabajo de los demás.
 
-Situación comprobada en el código:
+Situación de partida, antes de esta implementación:
 
 - `usePmWorkspace` mantiene campos, paso y trazos de firma en estado React. No existe persistencia local ni cola de sincronización.
 - Save draft, Save & exit y Save and continue requieren la API. La navegación entre etapas espera el guardado remoto.
@@ -255,6 +255,6 @@ La comparación de distribución Apple investigada en la revisión anterior se c
 
 ## 11. Entrega y control del alcance
 
-Esta rama comienza con este plan. Cada fase se implementará con cambios revisables, pruebas adecuadas y evidencia de dispositivo real antes de considerarse lista para campo. Esta revisión actualiza exclusivamente el plan con los requisitos confirmados; no introduce todavía funcionalidad offline ni modifica el entorno publicado.
+Las fases F1–F4 tienen implementación en esta rama: almacenamiento protegido, sincronización por PM, apertura y consulta mediante PWA, vista previa y cierre pendiente. F5 tiene pruebas automatizadas y pruebas de navegador local; sigue pendiente la matriz de Safari/PWA en dispositivos Apple físicos y carga representativa del piloto.
 
-En esta entrega no se cambia código de la app, esquema de base de datos, credenciales, configuración de Hostinger/Supabase ni las dos webs del cliente. La integración en `main` y el despliegue de funcionalidad se realizarán después de implementar y verificar las fases acordadas.
+La migración `0006_offline_sync` solo se aplicó a entornos locales de desarrollo y prueba. Antes de desplegar se debe aplicarla con el propietario de la base y verificar los permisos limitados de `cryopm_app`. No se modificaron Hostinger, Supabase, credenciales ni las dos webs del cliente. La integración en `main` y el despliegue requieren completar esta validación.

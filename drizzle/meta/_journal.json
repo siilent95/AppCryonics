@@ -43,6 +43,13 @@
       "when": 1792788765316,
       "tag": "0005_pm_trash_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793891752422,
+      "tag": "0006_offline_sync",
+      "breakpoints": true
     }
   ]
 }

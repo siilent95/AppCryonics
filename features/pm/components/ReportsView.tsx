@@ -10,6 +10,7 @@ import { VersionHistory } from "./VersionHistory";
 import { CorrectionDialog } from "./CorrectionDialog";
 import { DeleteReportDialog } from "./DeleteReportDialog";
 import { trashExpiresAt, TRASH_RETENTION_DAYS } from "../trash-policy";
+import { useOffline } from "@/features/offline/useOffline";
 import { useReports } from "../useReports";
 export function ReportsView({
   catalogModels = [],
@@ -43,7 +44,8 @@ export function ReportsView({
   onExport: (records: PmRecordSummary[]) => void;
   onOpenReport: (record: PmRecordSummary) => void;
 }) {
-  const reports = useReports(refreshKey);
+  const connection = useOffline();
+  const reports = useReports(refreshKey + connection.acknowledgements);
   const { records, pagination, filters, changeFilters, status, error } = reports;
   const trash = filters.view === "trash";
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -100,7 +102,7 @@ export function ReportsView({
         <div className="reportHeroActions"><button className="primaryAction" disabled={newPmBusy} onClick={onNewPm} type="button">New PM</button><button className="ghostButton" disabled={busy || pagination.total === 0 || exporting} onClick={async () => { setExporting(true); setActionError(""); try { onExport(await reports.exportAll()); } catch (error) { setActionError(error instanceof Error ? error.message : "Unable to export reports."); } finally { setExporting(false); } }} type="button">{exporting ? "Exporting…" : "Export CSV"}</button></div>
       </section>
 
-      <div className="reportManagementBar"><div className="reportViewTabs" role="group" aria-label="Report collection"><button className="ghostButton" aria-pressed={!trash} type="button" onClick={() => { changeFilters({ view: "active", brand: "" }); setDetailOpen(false); setNotice(""); }}>Active reports</button><button className="ghostButton" aria-pressed={trash} type="button" onClick={() => { changeFilters({ view: "trash", brand: "" }); setDetailOpen(false); setNotice(""); }}>Trash</button></div><span>{trash ? `Recover deleted PMs for ${TRASH_RETENTION_DAYS} days. Then they are permanently deleted.` : `Trash keeps deleted PMs for ${TRASH_RETENTION_DAYS} days.`}</span></div>
+      <div className="reportManagementBar"><div className="reportViewTabs" role="group" aria-label="Report collection"><button className="ghostButton" aria-pressed={!trash} type="button" onClick={() => { changeFilters({ view: "active", brand: "" }); setDetailOpen(false); setNotice(""); }}>Active reports</button><button className="ghostButton" aria-pressed={trash} disabled={!connection.online} type="button" onClick={() => { changeFilters({ view: "trash", brand: "" }); setDetailOpen(false); setNotice(""); }}>Trash</button></div><span>{trash ? `Recover deleted PMs for ${TRASH_RETENTION_DAYS} days. Then they are permanently deleted.` : `Trash keeps deleted PMs for ${TRASH_RETENTION_DAYS} days.`}</span></div>
       {notice && <p className="reportNotice" role="status">{notice}</p>}
       {actionError && <p className="accountError" role="alert">{actionError}</p>}
       <div className="reportsGrid">
@@ -146,11 +148,12 @@ export function ReportsView({
           {detail && !detailLoading && <>
             <div className="reportEditActions" aria-label="Report actions">
               {detail.record.canEdit && <button className="primaryAction continuePm" type="button" onClick={() => onContinue(detail)}>Continue draft</button>}
-              {detail.record.status === "completed" && <PdfDownloadButton key={detail.record.id} id={detail.record.id} completed requiresSignatures={!detail.record.correctsRecordId} />}
-              {detail.record.canCorrect && <button className="ghostButton" type="button" onClick={() => setCorrection(detail.record)}>Create correction</button>}
+              {!connection.online && detail.record.status === "completed" && <p>Connect to download the official PDF. This prepared preview remains available offline.</p>}
+              {connection.online && detail.record.status === "completed" && !detail.localState && <PdfDownloadButton key={detail.record.id} id={detail.record.id} completed requiresSignatures={!detail.record.correctsRecordId} />}
+              {connection.online && detail.record.canCorrect && <button className="ghostButton" type="button" onClick={() => setCorrection(detail.record)}>Create correction</button>}
               {!detail.record.canEdit && !detail.record.canCorrect && <p>This version is read-only. Drafts can be edited by their assigned technician or an admin.</p>}
             </div>
-            {((isAdmin && detail.versions?.at(-1)?.id === detail.record.id) || detail.record.canDelete) && <details className="reportOptions" key={detail.record.id}>
+            {connection.online && ((isAdmin && detail.versions?.at(-1)?.id === detail.record.id) || detail.record.canDelete) && <details className="reportOptions" key={detail.record.id}>
               <summary>Report options</summary>
               {isAdmin && detail.versions?.at(-1)?.id === detail.record.id && <PmAssignment key={`${detail.record.id}-${detail.record.revision}`} record={detail.record} onAssigned={onAssigned} />}
               {detail.record.canDelete && <div className="reportDeleteAction"><p>Move this PM to Trash. It can be restored within {TRASH_RETENTION_DAYS} days.</p><button className="ghostButton dangerText" type="button" onClick={() => setDeleting(detail.record)}>Delete PM</button></div>}
@@ -159,8 +162,8 @@ export function ReportsView({
           </>}<ReportPreview catalogModels={catalogModels} detail={detail} error={detailError} loading={detailLoading} /></div>}
 
       </div>
-      {deleting && <DeleteReportDialog record={deleting} onClose={() => setDeleting(null)} onDeleted={ids => { setDetailOpen(false); selectedRow.current = null; setNotice(`${deleting.recordNumber} moved to Trash. Recover it within ${TRASH_RETENTION_DAYS} days.`); onReportsChanged(ids, true); reports.refresh(); }} />}
-      {correction && <CorrectionDialog record={correction} onClose={() => setCorrection(null)} onCreated={onCorrectionCreated} />}
+      {connection.online && deleting && <DeleteReportDialog record={deleting} onClose={() => setDeleting(null)} onDeleted={ids => { setDetailOpen(false); selectedRow.current = null; setNotice(`${deleting.recordNumber} moved to Trash. Recover it within ${TRASH_RETENTION_DAYS} days.`); onReportsChanged(ids, true); reports.refresh(); }} />}
+      {connection.online && correction && <CorrectionDialog record={correction} onClose={() => setCorrection(null)} onCreated={onCorrectionCreated} />}
     </div>
   );
 }

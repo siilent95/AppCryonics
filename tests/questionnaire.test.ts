@@ -73,8 +73,6 @@ test("activates Overview, Equipment and Reports with protected PM records", asyn
   assert.doesNotMatch(page, /window\.print\(/);
   assert.match(page, /signature\?role=technician/);
   assert.match(page, /signature\?role=recipient/);
-  assert.match(page, /fetch\(`\/api\/pm-records\?\$\{params\}`/);
-  assert.match(page, /fetch\(`\/api\/pm-records\/\$\{record\.id\}`/);
   assert.match(collectionRoute, /technicianSignatureCapturedAt/);
   assert.match(collectionRoute, /recipientSignatureCapturedAt/);
   assert.match(collectionRoute, /controllerType/);

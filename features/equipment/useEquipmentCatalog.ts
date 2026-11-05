@@ -1,9 +1,9 @@
 "use client";
+import { offlineJson } from "@/features/offline/data";
 import { useCallback, useEffect, useState } from "react";
 import type { EquipmentCatalog } from "./types";
 async function loadCatalog(signal?: AbortSignal): Promise<EquipmentCatalog> {
- const response = await fetch("/api/equipment", { cache: "no-store", signal }); const result = await response.json();
- if (!response.ok) throw new Error(result.error || "Unable to load the equipment catalog."); return result;
+ return offlineJson<EquipmentCatalog>("/api/equipment",signal);
 }
 export function useEquipmentCatalog() {
  const [catalog, setCatalog] = useState<EquipmentCatalog>({ brands: [], models: [] });

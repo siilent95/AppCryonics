@@ -12,7 +12,19 @@ import { controllerOptions, hasNumber, hasNonNegativeNumber, hasNegativeNumber, 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEquipmentCatalog } from "@/features/equipment/useEquipmentCatalog";
 import type { CatalogModel } from "@/features/equipment/types";
-export function usePmWorkspace() {
+import { offlineEngine, hasWork } from "../offline/engine";
+import { offlineJson, readLocal } from "../offline/data";
+import { localDetail } from "../offline/reports";
+import { emptyCapture, type LocalDraft, type OfflineUser, type WorkspaceSnapshot } from "../offline/types";
+export function usePmWorkspace(user: OfflineUser) {
+  const [localDraftId,setLocalDraftId]=useState<string|null>(null);
+  const [localHydrated,setLocalHydrated]=useState(false);
+  const [deviceSaving,setDeviceSaving]=useState(false);
+  const [deviceSaveError,setDeviceSaveError]=useState("");
+  const [localWritable,setLocalWritable]=useState(true);
+  const localIdRef=useRef<string|null>(null);
+  const catalogModelIdRef=useRef<string|undefined>(undefined);
+  const localTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const catalogState = useEquipmentCatalog();
   const [catalogBrandId, setCatalogBrandId] = useState("taylor");
   const [catalogBrandName, setCatalogBrandName] = useState("Taylor-Wharton");
@@ -46,7 +58,6 @@ export function usePmWorkspace() {
   const [gasBypassDelayNA, setGasBypassDelayNA] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftRecordNumber, setDraftRecordNumber] = useState<string | null>(null);
-  const [draftRevision, setDraftRevision] = useState<number | null>(null);
   const [correctsRecordId, setCorrectsRecordId] = useState<string | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
   const [closingPm, setClosingPm] = useState(false);
@@ -199,12 +210,9 @@ export function usePmWorkspace() {
   const activeStep = steps[currentIndex].key;
   const activeComplete = completionByStep[activeStep];
 
-  const savedContent = useRef("");
-  const resuming = useRef(false);
-  const [resumeVersion, setResumeVersion] = useState(0);
   const draftBody = {
       brand,
-      catalogModelId: selectedCatalogModel?.id,
+      catalogModelId: selectedCatalogModel?.id || catalogModelIdRef.current,
       modelFamily: family,
       model,
       facility: brand === "mve" ? facility : null,
@@ -238,14 +246,81 @@ export function usePmWorkspace() {
         },
       },
     };
-  const contentSignature = JSON.stringify(draftBody);
-  useEffect(() => {
-    if (!draftId || completionStatus === "completed") return;
-    if (resuming.current) { savedContent.current = contentSignature; resuming.current = false; }
-    const matches = savedContent.current === contentSignature;
-    const timer = setTimeout(() => setSaveStatus(current => current === "saving" || current === "error" ? current : matches ? "saved" : "idle"), 0);
-    return () => clearTimeout(timer);
-  }, [contentSignature, draftId, draftRevision, resumeVersion, completionStatus]);
+  const snapshot: WorkspaceSnapshot = {body:draftBody,capture:{technicianSignature,recipientSignature,technicianName,technicianResponsible,recipientAccepted},catalogBrandId,catalogBrandName,requestedStep,correctsRecordId,correctionReason};
+  const snapshotRef=useRef(snapshot); snapshotRef.current=snapshot;
+  const serializedSnapshot=JSON.stringify(snapshot);
+
+  function applyLocal(d:LocalDraft) {
+    const s=d.snapshot,b=s.body,m=b.payload.measurements||{};
+    catalogModelIdRef.current=b.catalogModelId;
+    localIdRef.current=d.id;setLocalDraftId(d.id);
+    setBrand(b.brand);setCatalogBrandId(s.catalogBrandId);setCatalogBrandName(s.catalogBrandName);setFamily(b.modelFamily);setModel(b.model);
+    setFacility(b.facility||"");setLabName(b.labName);setClientOrganization(b.clientOrganization);setPerformedOn(b.performedOn);setFirmwareVersion(b.firmwareVersion||"");
+    setFreezerSerial(b.freezerSerial);setControllerSerial(b.controllerSerial);setLocation(b.location);setControllerType(b.controllerType);
+    setResponses(b.payload.responses||{});setNotes({...emptyNotes,...b.payload.notes});setExamValues({...emptyExam,...b.payload.examination});
+    setRoomResistance(m.roomResistance||"");setCryoResistance(m.cryoResistance||"");setSingleValveResistance(m.singleValveResistance||"");setDualValveResistance(m.dualValveResistance||"");setPurgeValveResistance(m.purgeValveResistance||"");
+    setBatteryVoltage(m.batteryVoltage||"");setManualLevel(m.manualLevel||"");setControllerLevel(m.controllerLevel||"");
+    setGasBypassTemperatureNA(!!b.payload.flags?.gasBypassTemperatureNA);setGasBypassDelayNA(!!b.payload.flags?.gasBypassDelayNA);
+    setTechnicianSignature(s.capture.technicianSignature);setRecipientSignature(s.capture.recipientSignature);setTechnicianName(s.capture.technicianName);setTechnicianResponsible(s.capture.technicianResponsible);setRecipientAccepted(s.capture.recipientAccepted);
+    setCorrectsRecordId(s.correctsRecordId);setCorrectionReason(s.correctionReason);setActiveStep(s.requestedStep);
+    setDraftId(d.server?.id||(d.formal?`local:${d.id}`:null));setDraftRecordNumber(d.server?.recordNumber||(d.formal?`LOCAL-${d.id.slice(0,8).toUpperCase()}`:null));
+    setSaveStatus(d.status==="blocked"?"error":d.sequence===d.syncedSequence?"saved":"idle");setSaveError(d.error);setDeviceSaveError("");
+    setCompletionStatus(d.status==="completed"?"completed":d.closing?"queued":"idle");setSignatureCapturedAt(d.completedAt||null);
+    setWorkspaceView("orders");
+  }
+  useEffect(()=>{
+    let alive=true;
+    offlineEngine.checkpoint().then(async checkpoint=>{
+      if(checkpoint?.activeId){
+        const d=await offlineEngine.draft(checkpoint.activeId);
+        if(d&&alive){applyLocal(d);try{await offlineEngine.resume(d.id);}catch(e){setLocalWritable(false);setDeviceSaveError(e instanceof Error?e.message:"This PM is open in another tab.");}}
+      }
+      if(alive)setLocalHydrated(true);
+    }).catch(e=>{if(alive){setDeviceSaveError(`Recovery failed: ${e.message}. Do not overwrite or clear device storage.`);setLocalWritable(false);}});
+    const unsubscribe=offlineEngine.subscribe(()=>{
+      const id=localIdRef.current;if(!id)return;
+      offlineEngine.draft(id).then(d=>{
+        if(!alive||localIdRef.current!==id)return;
+        if(!d){clearCurrentPm();return;}
+        if(d.server){setDraftId(d.server.id);setDraftRecordNumber(d.server.recordNumber);}
+        setSaveError(d.error);
+        setSaveStatus(d.status==="blocked"?"error":d.syncedSequence===d.sequence?"saved":"idle");
+        if(d.status==="completed"){setCompletionStatus("completed");setSignatureCapturedAt(d.completedAt||null);}
+      }).catch(e=>setDeviceSaveError(e.message));
+    });
+    return()=>{alive=false;unsubscribe();};
+  // Recovery occurs once, before enabling writes; later acknowledgements update metadata only.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user.id]);
+  async function flushLocal() {
+    if(localTimer.current){clearTimeout(localTimer.current);localTimer.current=null;}
+    if(!localHydrated||!localWritable)throw new Error(deviceSaveError||"Device recovery is not ready.");
+    if(completionStatus==="queued"||completionStatus==="completed"){await offlineEngine.flush();return;}
+    if(!localIdRef.current&&!hasWork(snapshotRef.current))return;
+    const id=localIdRef.current||crypto.randomUUID();localIdRef.current=id;setLocalDraftId(id);
+    setDeviceSaving(true);
+    try{const d=await offlineEngine.persist(id,snapshotRef.current);setSaveStatus(d.status==="blocked"?"error":d.sequence===d.syncedSequence?"saved":"idle");setDeviceSaveError("");}
+    catch(e){const message=e instanceof Error?e.message:"Device save failed.";setDeviceSaveError(message);if(message.includes("another tab"))setLocalWritable(false);throw e;}
+    finally{setDeviceSaving(false);}
+  }
+  useEffect(()=>{
+    if(!localHydrated||!localWritable||completionStatus==="queued"||completionStatus==="completed")return;
+    if(!localIdRef.current&&!hasWork(snapshotRef.current))return;
+    localTimer.current=setTimeout(()=>{localTimer.current=null;void flushLocal().catch(()=>{});},0);
+    return()=>{if(localTimer.current)clearTimeout(localTimer.current);};
+  // Snapshot serialization is deliberate: no render-created object can restart recovery.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[serializedSnapshot,localHydrated,localWritable,catalogState.status]);
+  useEffect(()=>{
+    const leave=()=>{void flushLocal().catch(()=>{});};window.addEventListener("pagehide",leave);return()=>window.removeEventListener("pagehide",leave);
+  // pagehide uses the current rendered snapshot; it must not reinstall on every keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[localHydrated,completionStatus,localWritable]);
+  async function resumeLocal(id:string){
+    try{if(localWritable)await flushLocal();const d=await offlineEngine.resume(id);applyLocal(d);setLocalWritable(true);}
+    catch(e){setDeviceSaveError(e instanceof Error?e.message:"Unable to recover the local PM.");}
+  }
+  async function previewLocal(id:string){const d=await offlineEngine.draft(id);if(d){setReportDetail(localDetail(d));setWorkspaceView("reports");}}
 
 
   const brandResponses = Object.entries(responses)
@@ -389,16 +464,11 @@ export function usePmWorkspace() {
     setReportDetailError("");
     setReportDetail(null);
     try {
-      const response = await fetch(`/api/pm-records/${record.id}`, {
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-      });
-      const result = await response.json() as ReportDetail & { error?: string };
-      if (!response.ok || !result.record) {
-        throw new Error(result.error || "Unable to retrieve the PM report.");
-      }
+      const local=await readLocal(record.id.replace(/^local:/,""));
+      if(local&&(local.sequence>local.syncedSequence||record.id.startsWith("local:"))){setReportDetail(localDetail(local));if(resume)await resumeLocal(local.id);return;}
+      const result=await offlineJson<ReportDetail>(`/api/pm-records/${local?.server?.id || record.id}`);
       setReportDetail(result);
-      if (resume) resumeRecord(result);
+      if (resume) await resumeRecord(result);
     } catch (error) {
       setReportDetailError(error instanceof Error ? error.message : "Unable to retrieve the PM report.");
     } finally {
@@ -406,25 +476,17 @@ export function usePmWorkspace() {
     }
   }
 
-  function resumeRecord(detail: ReportDetail) {
-    const record = detail.record;
-    if (!record.canEdit) return;
-    resuming.current = true; setResumeVersion(value => value + 1);
-    resetInspection();
-    setBrand(record.brand); setCatalogBrandId(record.equipmentBrandId || record.brand); setCatalogBrandName(recordBrandLabel(record)); setFamily(record.modelFamily); setModel(record.model);
-    setFacility(record.facility || ""); setLabName(record.labName || ""); setClientOrganization(record.clientOrganization || "");
-    setPerformedOn(record.performedOn || new Date().toLocaleDateString("sv-SE")); setFirmwareVersion(record.firmwareVersion || "");
-    setFreezerSerial(record.freezerSerial || ""); setControllerSerial(record.controllerSerial || ""); setLocation(record.location || ""); setControllerType(record.controllerType || "");
-    setResponses(record.payload.responses || {}); setNotes({ ...emptyNotes, ...record.payload.notes }); setExamValues({ ...emptyExam, ...record.payload.examination });
-    const measurements = record.payload.measurements || {};
-    setRoomResistance(measurements.roomResistance || ""); setCryoResistance(measurements.cryoResistance || "");
-    setSingleValveResistance(measurements.singleValveResistance || ""); setDualValveResistance(measurements.dualValveResistance || ""); setPurgeValveResistance(measurements.purgeValveResistance || "");
-    setBatteryVoltage(measurements.batteryVoltage || ""); setManualLevel(measurements.manualLevel || ""); setControllerLevel(measurements.controllerLevel || "");
-    setGasBypassTemperatureNA(Boolean(record.payload.flags?.gasBypassTemperatureNA)); setGasBypassDelayNA(Boolean(record.payload.flags?.gasBypassDelayNA));
-    setDraftId(record.id); setDraftRecordNumber(record.recordNumber); setDraftRevision(record.revision); setSaveError(""); setSaveStatus("idle");
-    setCorrectsRecordId(record.correctsRecordId || null); setCorrectionReason(record.correctionReason || "");
-    const savedStep = steps.find(step => step.key === record.currentStep)?.key || "construction";
-    setActiveStep(savedStep); openWorkspaceView("orders");
+  async function resumeRecord(detail: ReportDetail) {
+    try {
+    const r=detail.record;if(!r.canEdit)return;
+    const existing=await readLocal(r.id.replace(/^local:/,""));
+    if(existing && (r.id.startsWith("local:") || existing.sequence>existing.syncedSequence)){await resumeLocal(existing.id);return;}
+    await flushLocal();
+    let capture={...emptyCapture};
+    try{capture=(await offlineJson<{capture:typeof emptyCapture|null}>(`/api/pm-sync?recordId=${r.id}`)).capture||capture;}catch{/* A legacy draft may have no provisional capture. */}
+    const snap:WorkspaceSnapshot={body:{catalogModelId:catalogState.catalog.models.find(m=>m.brandId===(r.equipmentBrandId||r.brand)&&m.family===r.modelFamily&&m.model===r.model)?.id,brand:r.brand,modelFamily:r.modelFamily,model:r.model,facility:r.facility,labName:r.labName||"",clientOrganization:r.clientOrganization||"",performedOn:r.performedOn||new Date().toLocaleDateString("sv-SE"),firmwareVersion:r.firmwareVersion,freezerSerial:r.freezerSerial||"",controllerSerial:r.controllerSerial||"",location:r.location||"",controllerType:r.controllerType||"",templateVersion:r.templateVersion,currentStep:(steps.find(s=>s.key===r.currentStep)?.key||"construction"),payload:r.payload},capture,catalogBrandId:r.equipmentBrandId||r.brand,catalogBrandName:recordBrandLabel(r),requestedStep:steps.find(s=>s.key===r.currentStep)?.key||"construction",correctsRecordId:r.correctsRecordId||null,correctionReason:r.correctionReason||""};
+    const d=await offlineEngine.adopt(snap,{id:r.id,recordNumber:r.recordNumber,revision:r.revision});applyLocal(d);setLocalWritable(true);
+    } catch(e) { setDeviceSaveError(e instanceof Error?e.message:"Unable to open this PM for editing."); }
   }
 
   function exportReports(records: PmRecordSummary[]) {
@@ -454,38 +516,19 @@ export function usePmWorkspace() {
   }
 
   async function saveDraft(step: StepKey = activeStep): Promise<SavedRecord | null> {
-    if (saveInFlight.current || completionStatus === "completed") return null;
-    if (catalogState.status !== "loaded") { setSaveError("Load the equipment catalog before saving the PM."); setSaveStatus("error"); return null; }
-    if (!draftId && (!selectedCatalogModel || !selectedCatalogModel.active)) { setSaveError("Select an active model from Equipment before creating a PM."); setSaveStatus("error"); return null; }
-    saveInFlight.current = true;
-    setSaveStatus("saving");
-    setSaveError("");
-    const body = { ...draftBody, currentStep: step, expectedRevision: draftRevision };
-
-    try {
-      const response = await fetch(draftId ? `/api/pm-records/${draftId}` : "/api/pm-records", {
-        method: draftId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await response.json() as {
-        error?: string;
-        record?: { id: string; recordNumber: string; revision: number };
-      };
-      if (!response.ok || !result.record) {
-        throw new Error(result.error || "Unable to save the PM draft.");
-      }
-      savedContent.current = JSON.stringify({ ...draftBody, currentStep: step });
-      setDraftId(result.record.id);
-      setDraftRecordNumber(result.record.recordNumber);
-      setDraftRevision(result.record.revision);
-      setSaveStatus("saved");
-      return result.record;
-    } catch (error) {
-      setSaveStatus("error");
-      setSaveError(error instanceof Error ? error.message : "Unable to save the PM draft.");
-      return null;
-    } finally { saveInFlight.current = false; }
+    if(saveInFlight.current||completionStatus==="completed"||completionStatus==="queued")return null;
+    if(catalogState.status!=="loaded"){setSaveError("Load or prepare the equipment catalog before saving the PM.");return null;}
+    if(!draftId&&(!selectedCatalogModel||!selectedCatalogModel.active)){setSaveError("Select an active equipment model before saving.");return null;}
+    saveInFlight.current=true;setSaveStatus("saving");
+    try{
+      if(localTimer.current)clearTimeout(localTimer.current);
+      const id=localIdRef.current||crypto.randomUUID();localIdRef.current=id;setLocalDraftId(id);
+      const snap={...snapshotRef.current,body:{...snapshotRef.current.body,currentStep:step},requestedStep:step};
+      const d=await offlineEngine.persist(id,snap,{formal:true});
+      setDraftId(d.server?.id||`local:${id}`);setDraftRecordNumber(d.server?.recordNumber||`LOCAL-${id.slice(0,8).toUpperCase()}`);setSaveStatus(d.status==="blocked"?"error":d.sequence===d.syncedSequence?"saved":"idle");setSaveError(d.error);setDeviceSaveError("");
+      return d.server||{id:`local:${id}`,recordNumber:`LOCAL-${id.slice(0,8).toUpperCase()}`,revision:0};
+    }catch(e){setDeviceSaveError(e instanceof Error?e.message:"Could not save on this device.");setSaveStatus("error");return null;}
+    finally{saveInFlight.current=false;}
   }
 
   async function goNext() {
@@ -496,11 +539,13 @@ export function usePmWorkspace() {
   }
 
   function clearCurrentPm(nextModel?: CatalogModel) {
+      if(localTimer.current)clearTimeout(localTimer.current);
+      localIdRef.current=null;catalogModelIdRef.current=undefined;setLocalDraftId(null);
       const entry = nextModel || catalogState.catalog.models.find(item => item.brandId === "taylor" && item.model === "3K" && item.active) || catalogState.catalog.models.find(item => item.active && catalogState.catalog.brands.some(b => b.id === item.brandId && b.pmTemplate));
       const nextBrand = catalogState.catalog.brands.find(item => item.id === entry?.brandId);
       if (entry && nextBrand?.pmTemplate) { setBrand(nextBrand.pmTemplate); setCatalogBrandId(nextBrand.id); setCatalogBrandName(nextBrand.name); setFamily(entry.family); setModel(entry.model); setControllerType(entry.controllers[0] || ""); }
       setFacility(""); setLabName(""); setClientOrganization(""); setPerformedOn(new Date().toLocaleDateString("sv-SE")); setFirmwareVersion(""); setFreezerSerial(""); setControllerSerial(""); setLocation("");
-      resetInspection(); setDraftId(null); setDraftRecordNumber(null); setDraftRevision(null); setCorrectsRecordId(null); setCorrectionReason(""); savedContent.current = ""; resuming.current = false;
+      resetInspection(); setDraftId(null); setDraftRecordNumber(null);  setCorrectsRecordId(null); setCorrectionReason("");
       setSaveStatus("idle"); setSaveError("");
   }
 
@@ -515,81 +560,26 @@ export function usePmWorkspace() {
     closeInFlight.current = true;
     setClosingPm(true);
     try {
-      const hasContent = !!(draftId || facility || labName || clientOrganization || freezerSerial || controllerSerial || location || firmwareVersion || Object.keys(responses).length || Object.values(notes).some(value => value.trim()));
-      if (completionStatus !== "completed" && hasContent && !(draftId && saveStatus === "saved") && !await saveDraft()) { openWorkspaceView("orders"); return; }
+      const hasContent = !!localIdRef.current || hasWork(snapshotRef.current);
+      if (!["completed","queued"].includes(completionStatus) && hasContent && !await saveDraft()) { openWorkspaceView("orders"); return; }
+      if(localIdRef.current)await offlineEngine.release(localIdRef.current);
       clearCurrentPm(nextModel);
       setSaveStatus("idle"); setSaveError(""); setReportDetail(null); openWorkspaceView(view); void refreshRecords();
     } finally { closeInFlight.current = false; setClosingPm(false); }
   }
 
-  async function finalizeCorrection() {
-    if (!completionByStep.review || completionStatus === "completing" || completionStatus === "completed") return;
-    setCompletionStatus("completing"); setCompletionError("");
-    const saved = await saveDraft("review");
-    if (!saved) { setCompletionStatus("error"); setCompletionError("Save the correction before finalizing it."); return; }
-    try {
-      const response = await fetch(`/api/pm-records/${saved.id}/corrections/finalize`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedRevision: saved.revision }) });
-      const result = await response.json(); if (!response.ok) throw new Error(result.error || "Unable to finalize correction.");
-      setDraftRevision(result.record.revision); setCompletionStatus("completed"); setSaveStatus("saved"); void refreshRecords();
-    } catch (error) { setCompletionStatus("error"); setCompletionError(error instanceof Error ? error.message : "Unable to finalize correction."); }
-  }
-
   async function completePm() {
-    if (correctsRecordId) { await finalizeCorrection(); return; }
-    if (
-      !completionByStep.review ||
-      !technicianSignature ||
-      !technicianName.trim() ||
-      !technicianResponsible ||
-      !recipientSignature ||
-      !recipientAccepted ||
-      completionStatus === "completing"
-    ) return;
-    setCompletionStatus("completing");
-    setCompletionError("");
-    const saved = await saveDraft("review");
-    if (!saved) {
-      setCompletionStatus("error");
-      setCompletionError("Save the PM before recording the signatures.");
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/pm-records/${saved.id}/signature`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          technicianSignatureDataUrl: technicianSignature,
-          technicianName: technicianName.trim(),
-          technicianResponsible: true,
-          technicianAcceptanceVersion: "PM_TECHNICIAN_RESPONSIBILITY_V1",
-          recipientSignatureDataUrl: recipientSignature,
-          recipientAccepted: true,
-          recipientAcceptanceVersion: "PM_RECEIPT_V1",
-          expectedRevision: saved.revision,
-        }),
-      });
-      const result = await response.json() as {
-        error?: string;
-        record?: SavedRecord & {
-          status: "completed";
-          signatureCapturedAt: string;
-          signatureRetentionUntil: string;
-        };
-      };
-      if (!response.ok || !result.record) {
-        throw new Error(result.error || "Unable to complete the PM.");
-      }
-      setDraftRevision(result.record.revision);
-      setSignatureCapturedAt(result.record.signatureCapturedAt);
-      setSignatureRetentionUntil(result.record.signatureRetentionUntil);
-      setCompletionStatus("completed");
-      setSaveStatus("saved");
-      void refreshRecords();
-    } catch (error) {
-      setCompletionStatus("error");
-      setCompletionError(error instanceof Error ? error.message : "Unable to complete the PM.");
-    }
+    if(!completionByStep.review||["completing","queued","completed"].includes(completionStatus))return;
+    if(!correctsRecordId&&(!technicianSignature||!technicianName.trim()||!technicianResponsible||!recipientSignature||!recipientAccepted))return;
+    setCompletionStatus("completing");setCompletionError("");
+    try{
+      if(localTimer.current)clearTimeout(localTimer.current);
+      const id=localIdRef.current||crypto.randomUUID();localIdRef.current=id;setLocalDraftId(id);
+      const snap={...snapshotRef.current,body:{...snapshotRef.current.body,currentStep:"review" as const},capture:{...snapshotRef.current.capture,capturedAt:new Date().toISOString()},requestedStep:"review" as const};
+      const d=await offlineEngine.persist(id,snap,{formal:true,close:true});
+      setDraftId(d.server?.id||`local:${id}`);setDraftRecordNumber(d.server?.recordNumber||`LOCAL-${id.slice(0,8).toUpperCase()}`);setCompletionStatus("queued");setSaveStatus("idle");
+      void offlineEngine.sync();
+    }catch(e){setCompletionStatus("error");setCompletionError(e instanceof Error?e.message:"Could not preserve the completion on this device.");}
   }
 
   function blockingMessage() {
@@ -606,6 +596,7 @@ export function usePmWorkspace() {
 
 
  return {
+    localDraftId,localHydrated,localWritable,deviceSaving,deviceSaveError,flushLocal,resumeLocal,previewLocal,
     isCorrection: !!correctsRecordId,
     correctionReason,
     closingPm,

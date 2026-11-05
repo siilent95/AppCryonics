@@ -1,0 +1,12 @@
+.offlineStatus,.deviceDrafts{margin-block:0 24px;padding:16px 20px;border:1px solid var(--border,rgba(146,208,226,.24));border-radius:16px;background:rgba(13,41,60,.3);color:#d9e9f1;min-width:0}
+.offlineStatusLine{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.9rem;font-weight:500}
+.offlineStatusLine button{color:#9de6ef;background:transparent;border:0;padding:10px 4px;min-height:44px;text-decoration:underline;text-underline-offset:4px}
+.offlineStatus p,.deviceDrafts>p{line-height:1.55;font-size:.9rem;max-width:80ch;margin-block:8px}
+.offlineStatusDetails{border-top:1px solid rgba(146,208,226,.2);padding-top:12px;margin-top:8px}
+.offlineButtons{display:flex;flex-wrap:wrap;gap:10px;margin-block:12px 0}
+.offlineButtons button{min-height:48px;white-space:normal;line-height:1.4;flex:0 1 auto}
+.deviceDrafts h2{font-size:1.1rem;margin-bottom:8px}.deviceDraftList{display:grid;gap:12px;margin-top:16px}
+.deviceDraftList article{padding:16px;border:1px solid rgba(146,208,226,.22);border-radius:12px;min-width:0}
+.deviceDraftList strong,.deviceDraftList span,.deviceDraftList small{display:block;overflow-wrap:anywhere;margin-bottom:6px}.deviceDraftList small{color:#bed0df}
+.conflictReview{border-top:1px solid rgba(146,208,226,.24);margin-top:24px;padding-top:20px}.conflictCopies{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.conflictCopies>div{min-width:0}.conflictCopies .reportPreview{max-height:50vh;overflow:auto;font-size:14px}.localPreviewNotice{background:#e2f1f4;color:#18394a;padding:16px;font-weight:500}
+@media(max-width:700px){.offlineStatus,.deviceDrafts{padding:12px;margin-bottom:16px}.offlineButtons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.offlineButtons button{width:100%;padding:12px 8px}.conflictCopies{grid-template-columns:minmax(0,1fr)}}

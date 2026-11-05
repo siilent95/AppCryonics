@@ -1,3 +1,4 @@
+import { testOfflineSync } from "./offline-sync-integration";
 import { testSecurityBoundaries } from "./security-integration";
 import { testEquipmentCatalog } from "./equipment-integration";
 import { testTopEquipment } from "./top-equipment-integration";
@@ -394,6 +395,7 @@ test("PostgreSQL migration, sessions, ownership, revisions, signatures and reten
         assert.equal((await fetch(`${origin}/api/pm-records`, { headers: { cookie: cookieHeader } })).status, 401);
       } finally { server.kill(); await exited; }
     });
+    await t.test("offline idempotency, concurrent revisions, provisional captures, rollback and account isolation", testOfflineSync);
     await t.test("security boundaries reject anonymous access, cross-account access, oversized input and invalid files", testSecurityBoundaries);
     await t.test("equipment catalog, uploads and manufacturer/template snapshots", testEquipmentCatalog);
     await t.test("top three equipment models preserve family identity, filters and access", testTopEquipment);

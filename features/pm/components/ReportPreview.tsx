@@ -64,6 +64,7 @@ export function ReportPreview({
 
   return (
     <article className="reportPreview">
+      {detail.localState && <p role="status" className="localPreviewNotice">Device preview · {detail.localState}. Official completion and PDF require server confirmation.</p>}
       <section className="reportCover" aria-label="PM report summary">
         <img className="reportLogo" alt="Cryogenics Solution Inc." src="/brand/logo-primary.png" />
         <div className="reportCoverHeading"><span>Preventive maintenance</span><strong>{record.recordNumber}</strong><small>PM date {formatDate(pmDate(record))}</small></div>
@@ -145,7 +146,7 @@ export function ReportPreview({
         {reportNote("general")}
         <div className="pmReportAttestation"><strong>Maintenance record</strong>{record.correctionPublication ? <p>Correction finalized by {record.correctionPublication.name} on {formatDate(record.correctionPublication.createdAt, true)}. Original signatures refer to {record.signatureReference?.recordNumber || "the previously signed version"}; no new signatures were collected.</p> : <p>The technician signature documents responsibility for the work recorded in this PM. The recipient signature documents receipt of the PM.</p>}<p>PM date: {formatDate(pmDate(record))} · Record: {record.recordNumber} · Version: {record.documentVersion || 1}</p></div>
         {record.signatureReference && <p className="signatureReferenceNote">Signatures from version {record.signatureReference.documentVersion} · {record.signatureReference.recordNumber}</p>}
-        {record.status !== "completed" ? (
+        {detail.localCapture && !record.correctsRecordId ? <div className="reportSignatureGrid"><figure><figcaption>Technician: {detail.localCapture.technicianName || "Not recorded"} · provisional device capture</figcaption>{detail.localCapture.technicianSignature && <img alt="Provisional technician signature" src={detail.localCapture.technicianSignature} />}</figure><figure><figcaption>Recipient · provisional device capture</figcaption>{detail.localCapture.recipientSignature && <img alt="Provisional recipient signature" src={detail.localCapture.recipientSignature} />}</figure></div> : record.status !== "completed" ? (
           <p>{record.correctsRecordId ? "Correction draft. Finalize this version to view the original signature references." : "This PM is still a draft. Signatures have not been recorded."}</p>
         ) : (
           <div className="reportSignatureGrid">

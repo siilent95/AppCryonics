@@ -89,7 +89,7 @@ export async function GET(request: Request) {
       .orderBy(desc(pmRecords.updatedAt), asc(pmRecords.id))
       .limit(pageSize).offset((page - 1) * pageSize);
 
-    return Response.json({ records: rows, pagination: { page, pageSize, total: totals.total, pages }, brands }, { headers: privateHeaders });
+    return Response.json({ records: rows, pagination: { page, pageSize, total: totals.total, pages }, brands }, { headers: {...privateHeaders,"X-CryoPM-Actor":actor.id} });
   } catch (error) {
     return apiError(error);
   }
