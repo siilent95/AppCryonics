@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   title: "CryoPM · Cryogenics Solution Inc.",
   description: "Preventive maintenance records for cryogenic equipment.",
   icons: { icon: [{url:"/brand/cryogenics-app-192.png",type:"image/png",sizes:"192x192"}], apple:[{url:"/brand/cryogenics-app-180.png",type:"image/png",sizes:"180x180"}] },
-  appleWebApp:{capable:true,title:"CryoPM",statusBarStyle:"black-translucent"},
+  appleWebApp:{capable:true,title:"CryoPM",statusBarStyle:"black"},
   openGraph: {
     title: "CryoPM",
     description: "Preventive Maintenance, Precisely Controlled",
